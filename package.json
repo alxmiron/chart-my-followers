@@ -1,0 +1,38 @@
+{
+  "name": "chart-my-followers",
+  "version": "1.0.0",
+  "description": "Mini chart application",
+  "author": "Alexey Mironenko",
+  "engines": {
+    "node": "^8.0.0"
+  },
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "grunt",
+    "build": "NODE_ENV=production grunt build",
+    "lint": "eslint ./",
+    "serve-test": "browser-sync start --server --files 'build/*.html'",
+    "serve": "http-server -p 3000 ./build"
+  },
+  "devDependencies": {
+    "babel-eslint": "^10.0.1",
+    "browser-sync": "^2.18.13",
+    "eslint": "^5.0.0",
+    "grunt": "^1.0.1",
+    "grunt-browser-sync": "^2.2.0",
+    "grunt-browserify": "^5.2.0",
+    "grunt-contrib-clean": "^2.0.0",
+    "grunt-contrib-concat": "^1.0.0",
+    "grunt-contrib-copy": "^1.0.0",
+    "grunt-contrib-cssmin": "^3.0.0",
+    "grunt-contrib-jade": "^1.0.0",
+    "grunt-contrib-sass": "^1.0.0",
+    "grunt-contrib-uglify-es": "^3  .0.0",
+    "grunt-contrib-watch": "^1.0.0",
+    "grunt-notify": "^0.4.3",
+    "grunt-postcss": "^0.9.0",
+    "http-server": "^0.11.0",
+    "load-grunt-tasks": "^4.0.0",
+    "prettier": "^1.16.4"
+  }
+}

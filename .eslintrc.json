@@ -1,0 +1,23 @@
+{
+    "extends": ["eslint:recommended"],
+    "parser": "babel-eslint",
+    "env": {
+      "browser": true,
+      "node": true
+    },
+    "parserOptions": {
+        "ecmaFeatures": {
+            "jsx": true,
+            "modules": true
+        }
+    },
+    "rules": {},
+    "globals": {
+        "console": false,
+        "process": false,
+        "module": false,
+        "require": false,
+        "document": false,
+        "window": false
+    }
+}

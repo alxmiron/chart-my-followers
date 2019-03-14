@@ -1,0 +1,19 @@
+doctype html
+html(lang='')
+  head
+    meta(http-equiv='X-UA-Compatible', content='IE=edge')
+    meta(charset='utf-8')
+    title Welcome to telegram-chars
+    meta(name='viewport', content='width=device-width, initial-scale=1')
+    link(rel="stylesheet" href="css/bundle.css")
+  body
+    #root
+      .canvas-container
+        canvas#canvas
+        .navigation-handler#navigation-handler
+      .controls
+        .switches
+        .select
+          select#dataset-select
+          span Dataset
+    script(src="js/bundle.js")

@@ -1,0 +1,22 @@
+@import './slider.scss';
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+#root {
+  padding: 10px;
+}
+
+.canvas-container {
+  position: relative;
+}
+
+.navigation-handler {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
