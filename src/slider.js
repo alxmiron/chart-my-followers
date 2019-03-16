@@ -10,7 +10,7 @@ module.exports = function getSliderObservable() {
     range: { min: 0, max: 100 },
   });
 
-  const slider$ = new Observable();
+  const slider$ = new Observable('slider');
   sliderNode.sliderApi.on('update', data => slider$.broadcast(data));
   return slider$;
 };

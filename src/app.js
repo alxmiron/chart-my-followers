@@ -61,30 +61,49 @@ const bootstrap = () => {
     .filter((windowSize, prevWindowSize) => !prevWindowSize || windowSize.width !== prevWindowSize.width)
     .withInitialEvent({ width: window.innerWidth, height: window.innerHeight, paddings: 20 });
 
+  // Navigation slider
+  const slider$ = getSliderObservable();
+
   const withBigCanvas = fn => fn(bigCanvas, bigCtx);
   const withNavCanvas = fn => fn(navCanvas, navCtx);
 
   withBigCanvas((canvas, ctx) => {
     const chartSize$ = getChartSizeObservable(windowSize$, canvas, { height: 420, ratio });
-    chartData$.merge([chartSize$.withName('chartSize')]).subscribe(({ chartSize, chartData, ...otherProps }) => {
-      const yColumns = omitProps(chartData, ['x']);
-      const maxDataLength = Math.max(...Object.values(yColumns).map(col => col.data.length)) - 1;
-      const maxDataValue = Math.max(...concatArrays(Object.values(yColumns).map(col => col.data)));
-      const stepX = chartSize.width / Math.max(maxDataLength, 1);
-      const stepY = (chartSize.height * 0.9) / (maxDataValue + 1);
-      clearChart(canvas, ctx)();
-      const gridRows = getGridRows({ chartSize, chartData, stepX, stepY }, { maxDataValue, bottomOffset: 20 });
-      renderGrid(canvas, ctx)(gridRows, chartSize);
-      Object.values(yColumns).forEach(columnData => {
-        renderLine(canvas, ctx)({ ...otherProps, chartSize, columnData, stepX, stepY }, { lineWidth: 1.4, bottomOffset: 20 });
-      });
-      renderGridValues(canvas, ctx)(gridRows, chartSize);
-      renderTimeline(canvas, ctx)({ chartSize, chartData });
+
+    const bigChartData$ = chartData$.merge([slider$.withName('slider')]).map(({ chartData, slider }) => {
+      const left = parseFloat(slider[0]) / 100;
+      const right = parseFloat(slider[1]) / 100;
+      return Object.values(chartData).reduce((acc, column) => {
+        const leftIndex = Math.floor(column.data.length * left);
+        const rightIndex = Math.ceil(column.data.length * right);
+        acc[column.id] = { ...column, data: column.data.slice(leftIndex, rightIndex) };
+        return acc;
+      }, {});
     });
+
+    bigChartData$
+      .withName('chartData')
+      .merge([chartSize$.withName('chartSize')])
+      .subscribe(({ chartSize, chartData }) => {
+        const yColumns = omitProps(chartData, ['x']);
+        const maxDataLength = Math.max(...Object.values(yColumns).map(col => col.data.length)) - 1;
+        const maxDataValue = Math.max(...concatArrays(Object.values(yColumns).map(col => col.data)));
+        const stepX = chartSize.width / Math.max(maxDataLength, 1);
+        const stepY = (chartSize.height * 0.9) / (maxDataValue + 1);
+        clearChart(canvas, ctx)();
+        const gridRows = getGridRows({ chartSize, chartData, stepX, stepY }, { maxDataValue, bottomOffset: 20 });
+        renderGrid(canvas, ctx)(gridRows, chartSize);
+        Object.values(yColumns).forEach(columnData => {
+          renderLine(canvas, ctx)({ chartSize, columnData, stepX, stepY }, { lineWidth: 1.4, bottomOffset: 20 });
+        });
+        renderGridValues(canvas, ctx)(gridRows, chartSize);
+        renderTimeline(canvas, ctx)({ chartSize, chartData });
+      });
   });
 
   withNavCanvas((canvas, ctx) => {
     const chartSize$ = getChartSizeObservable(windowSize$, canvas, { height: 60, ratio });
+
     chartData$.merge([chartSize$.withName('chartSize')]).subscribe(({ chartSize, chartData, ...otherProps }) => {
       const yColumns = omitProps(chartData, ['x']);
       const maxDataLength = Math.max(...Object.values(yColumns).map(col => col.data.length)) - 1;
@@ -98,8 +117,6 @@ const bootstrap = () => {
       renderFrame(canvas, ctx)({ ...otherProps, chartSize });
     });
   });
-
-  /* const slider$ = */ getSliderObservable();
 
   // Load dataset from server
   fetch('assets/chart_data.min.json')
