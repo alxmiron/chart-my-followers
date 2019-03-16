@@ -45,9 +45,9 @@ $slider-height: 60px;
   transform-style: flat;
 }
 .slider-connect:nth-child(odd) {
-  background: rgba(181, 181, 181, 0.2);
-  border-top: 1px solid rgba(#f0f0f0, 1);
-  border-bottom: 1px solid rgba(#f0f0f0, 1);
+  background: rgba(181, 181, 181, 0.3);
+  border-top: 1px solid rgba($grey0, 1);
+  border-bottom: 1px solid rgba($grey0, 1);
 }
 .slider-origin {
   left: auto;
@@ -70,7 +70,7 @@ $slider-height: 60px;
     position: absolute;
     height: $slider-height;
     width: 4px;
-    background: #d6d5d4;
+    background: $grey1;
     left: 16px;
     top: 6px;
   }

@@ -1,6 +1,6 @@
 const Observable = require('./observable');
 
-module.exports = function getSlider() {
+module.exports = function getSliderObservable() {
   const rangeSlider = sliderFactory();
   const sliderNode = document.getElementById('navigation-handler');
 

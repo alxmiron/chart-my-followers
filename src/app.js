@@ -1,52 +1,82 @@
-const getSlider = require('./slider');
+const getSliderObservable = require('./slider');
 const Observable = require('./observable');
-const { clearChart, renderLine, renderFrame, renderDataSelect } = require('./render');
+const { clearChart, renderLine, renderFrame } = require('./chart');
+const { renderDataSelect, getSwitchesObservable, renderColumnControls, updateSwitchesSubscriptions } = require('./controls');
 const { formatChartData } = require('./data');
 const { getDeviceRatio, omitProps, concatArrays } = require('./utils');
+
+const enableDebug = true;
+const debug = msg => {
+  if (!enableDebug) return;
+  console.log(msg, Date.now()); // eslint-disable-line no-console
+};
 
 const bootstrap = () => {
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
   const $dataSelect = document.getElementById('dataset-select');
+  const $columnSwitches = document.getElementById('column-switches');
   const ratio = getDeviceRatio(ctx);
   ctx.scale(ratio, ratio);
 
-  // Source data:
   const dataSelect$ = new Observable('dataSelect')
     .fromEvent($dataSelect, 'change')
     .map(event => parseInt(event.target.value, 10))
     .withInitialEvent(0);
+
+  // dataset, loaded from server
   const dataset$ = new Observable('dataset');
+
+  // Columns checkboxes
+  const columnSwitches$ = getSwitchesObservable($columnSwitches);
+
+  // Dataset case (filtered by dataSelect)
   const sourceData$ = dataset$
     .merge([dataSelect$.withName('dataSelect')])
     .map(({ dataset, dataSelect }) => dataset[dataSelect])
     .withName('sourceData')
     .subscribe(sourceData => {
-      console.log('Source data:'); // eslint-disable-line no-console
-      console.dir(sourceData); // eslint-disable-line no-console
+      debug('sourceData$ event');
+      if (enableDebug) {
+        console.log('Source data:'); // eslint-disable-line no-console
+        console.dir(sourceData); // eslint-disable-line no-console
+      }
+      renderColumnControls($columnSwitches, sourceData);
+      updateSwitchesSubscriptions($columnSwitches, columnSwitches$);
     });
 
-  // Chart sizing:
+  // Chart data (filtered by columns checkboxes)
+  const chartData$ = sourceData$
+    .merge([columnSwitches$])
+    .map(({ columnSwitches, sourceData }) => omitProps(sourceData, Object.keys(columnSwitches).filter(colId => !columnSwitches[colId])))
+    .withName('chartData');
+
+  // Global window size
   const windowSize$ = new Observable()
     .fromEvent(window, 'resize')
     .map(event => ({
       width: event.target.innerWidth,
       windowHeight: event.target.innerHeight,
     }))
-    .filter((windowSize, prevWindowSize) => !prevWindowSize || windowSize.width !== prevWindowSize.width);
+    .filter((windowSize, prevWindowSize) => !prevWindowSize || windowSize.width !== prevWindowSize.width)
+    .withInitialEvent({ width: window.innerWidth, height: window.innerHeight });
+
+  // Navigation chart size
   const navChartSize$ = windowSize$
-    .map(windowSize => ({ ratio, width: (windowSize.width - 10 * 2) /* paddings */ * ratio, height: 60 * ratio }))
+    .map(windowSize => ({ ratio, width: (windowSize.width - 10 * 2) /* paddings */ * ratio, height: 60 * ratio }), { inheritLastValue: true })
     .subscribe(chartSize => {
+      debug('navChartSize$ event');
       canvas.width = chartSize.width;
       canvas.height = chartSize.height;
-      canvas.style.width = chartSize.width / ratio + 'px';
-      canvas.style.height = chartSize.height / ratio + 'px';
-    });
-  windowSize$.withInitialEvent({ width: window.innerWidth, height: window.innerHeight });
+      canvas.style.width = chartSize.width / chartSize.ratio + 'px';
+      canvas.style.height = chartSize.height / chartSize.ratio + 'px';
+    })
+    .repeatLast();
 
-  // Nav chart:
-  sourceData$.merge([navChartSize$.withName('chartSize')]).subscribe(({ chartSize, sourceData, ...otherProps }) => {
-    const yColumns = omitProps(sourceData, ['x']);
+  // Navigation chart
+  chartData$.merge([navChartSize$.withName('chartSize')]).subscribe(({ chartSize, chartData, ...otherProps }) => {
+    debug('navChart$ event');
+    const yColumns = omitProps(chartData, ['x']);
     const maxDataLength = Math.max(...Object.values(yColumns).map(col => col.data.length)) - 1;
     const maxDataValue = Math.max(...concatArrays(Object.values(yColumns).map(col => col.data)));
     const stepX = chartSize.width / Math.max(maxDataLength, 1);
@@ -58,7 +88,9 @@ const bootstrap = () => {
     renderFrame(canvas, ctx)({ ...otherProps, chartSize });
   });
 
-  /* const slider$ = */ getSlider();
+  /* const slider$ = */ getSliderObservable();
+
+  // Load dataset from server
   fetch('assets/chart_data.min.json')
     .then(response => response.json())
     .then(dataset => formatChartData(dataset))

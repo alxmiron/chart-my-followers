@@ -3,6 +3,10 @@ class Observable {
     this.observers = [];
     this.name = name;
   }
+  broadcast(data) {
+    this.observers.forEach(subscriber => subscriber(data));
+    this.lastValue = data;
+  }
   withName(name) {
     this.name = name;
     return this;
@@ -11,13 +15,12 @@ class Observable {
     this.observers.push(fn);
     return this;
   }
-  unsubscribe(fn) {
-    this.observers = this.observers.filter(subscriber => subscriber !== fn);
-  }
-  broadcast(data) {
-    this.observers.forEach(subscriber => subscriber(data));
-    this.lastValue = data;
-  }
+  // unsubscribe(fn) {
+  //   this.observers = this.observers.filter(subscriber => subscriber !== fn);
+  // }
+  // clearSubscriptions() {
+  //   this.observers = [];
+  // }
   fromEvent(node, eventType) {
     node.addEventListener(eventType, event => this.broadcast(event));
     return this;
@@ -26,10 +29,15 @@ class Observable {
     this.broadcast(event);
     return this;
   }
-  map(fn) {
+  map(fn, { inheritLastValue } = {}) {
     const child$ = new Observable();
+    if (inheritLastValue) child$.lastValue = fn(this.lastValue);
     this.subscribe(data => child$.broadcast(fn(data)));
     return child$;
+  }
+  repeatLast() {
+    this.broadcast(this.lastValue);
+    return this;
   }
   merge(observables) {
     const child$ = new Observable();

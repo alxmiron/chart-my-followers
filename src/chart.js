@@ -24,14 +24,4 @@ const clearChart = (canvas, ctx) => () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 };
 
-const renderDataSelect = ($dataSelect, dataset) => {
-  Object.values(dataset).forEach((dataCase, index) => {
-    const option = document.createElement('option');
-    option.value = index;
-    option.appendChild(document.createTextNode(`${index + 1}`));
-    $dataSelect.appendChild(option);
-  });
-  return dataset;
-};
-
-module.exports = { clearChart, renderLine, renderFrame, renderDataSelect };
+module.exports = { clearChart, renderLine, renderFrame };
