@@ -4,7 +4,7 @@ const formatChartData = dataset => {
       const columnId = column[0];
       acc[columnId] = {
         id: columnId,
-        data: column.slice(1),
+        data: column.slice(1), // [0, ...column.slice(1), 0],
         color: dataCase.colors[columnId],
         name: dataCase.names[columnId],
         type: dataCase.types[columnId],

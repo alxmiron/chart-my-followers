@@ -1,15 +1,11 @@
 const getSliderObservable = require('./slider');
 const Observable = require('./observable');
-const { clearChart, renderLine, renderFrame, getChartSizeObservable } = require('./chart');
+const { getChartSizeObservable, clearChart, getGridRows } = require('./chart');
+const { renderLine, renderFrame, renderTimeline, renderGrid, renderGridValues } = require('./chart');
 const { renderDataSelect, getSwitchesObservable, renderColumnControls, updateSwitchesSubscriptions } = require('./controls');
 const { formatChartData } = require('./data');
 const { getDeviceRatio, omitProps, concatArrays } = require('./utils');
-
-const enableDebug = true;
-// const debug = msg => {
-//   if (!enableDebug) return;
-//   console.log(msg, Date.now()); // eslint-disable-line no-console
-// };
+const { debug, debugDir } = require('./debug');
 
 const bootstrap = () => {
   const bigCanvas = document.getElementById('big-canvas');
@@ -42,10 +38,8 @@ const bootstrap = () => {
     .map(({ dataset, dataSelect }) => dataset[dataSelect])
     .withName('sourceData')
     .subscribe(sourceData => {
-      if (enableDebug) {
-        console.log('Source data:'); // eslint-disable-line no-console
-        console.dir(sourceData); // eslint-disable-line no-console
-      }
+      debug('Source data:');
+      debugDir(sourceData);
       renderColumnControls($columnSwitches, sourceData);
       updateSwitchesSubscriptions($columnSwitches, columnSwitches$);
     });
@@ -71,7 +65,7 @@ const bootstrap = () => {
   const withNavCanvas = fn => fn(navCanvas, navCtx);
 
   withBigCanvas((canvas, ctx) => {
-    const chartSize$ = getChartSizeObservable(windowSize$, canvas, { height: 400, ratio });
+    const chartSize$ = getChartSizeObservable(windowSize$, canvas, { height: 420, ratio });
     chartData$.merge([chartSize$.withName('chartSize')]).subscribe(({ chartSize, chartData, ...otherProps }) => {
       const yColumns = omitProps(chartData, ['x']);
       const maxDataLength = Math.max(...Object.values(yColumns).map(col => col.data.length)) - 1;
@@ -79,9 +73,13 @@ const bootstrap = () => {
       const stepX = chartSize.width / Math.max(maxDataLength, 1);
       const stepY = (chartSize.height * 0.9) / (maxDataValue + 1);
       clearChart(canvas, ctx)();
+      const gridRows = getGridRows({ chartSize, chartData, stepX, stepY }, { maxDataValue, bottomOffset: 20 });
+      renderGrid(canvas, ctx)(gridRows, chartSize);
       Object.values(yColumns).forEach(columnData => {
-        renderLine(canvas, ctx)({ ...otherProps, chartSize, columnData, stepX, stepY }, { lineWidth: 1.4 });
+        renderLine(canvas, ctx)({ ...otherProps, chartSize, columnData, stepX, stepY }, { lineWidth: 1.4, bottomOffset: 20 });
       });
+      renderGridValues(canvas, ctx)(gridRows, chartSize);
+      renderTimeline(canvas, ctx)({ chartSize, chartData });
     });
   });
 
