@@ -1,23 +1,29 @@
 const getSliderObservable = require('./slider');
 const Observable = require('./observable');
-const { clearChart, renderLine, renderFrame } = require('./chart');
+const { clearChart, renderLine, renderFrame, getChartSizeObservable } = require('./chart');
 const { renderDataSelect, getSwitchesObservable, renderColumnControls, updateSwitchesSubscriptions } = require('./controls');
 const { formatChartData } = require('./data');
 const { getDeviceRatio, omitProps, concatArrays } = require('./utils');
 
 const enableDebug = true;
-const debug = msg => {
-  if (!enableDebug) return;
-  console.log(msg, Date.now()); // eslint-disable-line no-console
-};
+// const debug = msg => {
+//   if (!enableDebug) return;
+//   console.log(msg, Date.now()); // eslint-disable-line no-console
+// };
 
 const bootstrap = () => {
-  const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d');
+  const bigCanvas = document.getElementById('big-canvas');
+  const bigCtx = bigCanvas.getContext('2d');
+
+  const navCanvas = document.getElementById('nav-canvas');
+  const navCtx = navCanvas.getContext('2d');
+
+  const ratio = getDeviceRatio(navCtx);
+  navCtx.scale(ratio, ratio);
+  bigCtx.scale(ratio, ratio);
+
   const $dataSelect = document.getElementById('dataset-select');
   const $columnSwitches = document.getElementById('column-switches');
-  const ratio = getDeviceRatio(ctx);
-  ctx.scale(ratio, ratio);
 
   const dataSelect$ = new Observable('dataSelect')
     .fromEvent($dataSelect, 'change')
@@ -36,7 +42,6 @@ const bootstrap = () => {
     .map(({ dataset, dataSelect }) => dataset[dataSelect])
     .withName('sourceData')
     .subscribe(sourceData => {
-      debug('sourceData$ event');
       if (enableDebug) {
         console.log('Source data:'); // eslint-disable-line no-console
         console.dir(sourceData); // eslint-disable-line no-console
@@ -57,35 +62,43 @@ const bootstrap = () => {
     .map(event => ({
       width: event.target.innerWidth,
       windowHeight: event.target.innerHeight,
+      paddings: 20,
     }))
     .filter((windowSize, prevWindowSize) => !prevWindowSize || windowSize.width !== prevWindowSize.width)
-    .withInitialEvent({ width: window.innerWidth, height: window.innerHeight });
+    .withInitialEvent({ width: window.innerWidth, height: window.innerHeight, paddings: 20 });
 
-  // Navigation chart size
-  const navChartSize$ = windowSize$
-    .map(windowSize => ({ ratio, width: (windowSize.width - 10 * 2) /* paddings */ * ratio, height: 60 * ratio }), { inheritLastValue: true })
-    .subscribe(chartSize => {
-      debug('navChartSize$ event');
-      canvas.width = chartSize.width;
-      canvas.height = chartSize.height;
-      canvas.style.width = chartSize.width / chartSize.ratio + 'px';
-      canvas.style.height = chartSize.height / chartSize.ratio + 'px';
-    })
-    .repeatLast();
+  const withBigCanvas = fn => fn(bigCanvas, bigCtx);
+  const withNavCanvas = fn => fn(navCanvas, navCtx);
 
-  // Navigation chart
-  chartData$.merge([navChartSize$.withName('chartSize')]).subscribe(({ chartSize, chartData, ...otherProps }) => {
-    debug('navChart$ event');
-    const yColumns = omitProps(chartData, ['x']);
-    const maxDataLength = Math.max(...Object.values(yColumns).map(col => col.data.length)) - 1;
-    const maxDataValue = Math.max(...concatArrays(Object.values(yColumns).map(col => col.data)));
-    const stepX = chartSize.width / Math.max(maxDataLength, 1);
-    const stepY = (chartSize.height * 0.9) / (maxDataValue + 1);
-    clearChart(canvas, ctx)();
-    Object.values(yColumns).forEach(columnData => {
-      renderLine(canvas, ctx)({ ...otherProps, chartSize, columnData, stepX, stepY });
+  withBigCanvas((canvas, ctx) => {
+    const chartSize$ = getChartSizeObservable(windowSize$, canvas, { height: 400, ratio });
+    chartData$.merge([chartSize$.withName('chartSize')]).subscribe(({ chartSize, chartData, ...otherProps }) => {
+      const yColumns = omitProps(chartData, ['x']);
+      const maxDataLength = Math.max(...Object.values(yColumns).map(col => col.data.length)) - 1;
+      const maxDataValue = Math.max(...concatArrays(Object.values(yColumns).map(col => col.data)));
+      const stepX = chartSize.width / Math.max(maxDataLength, 1);
+      const stepY = (chartSize.height * 0.9) / (maxDataValue + 1);
+      clearChart(canvas, ctx)();
+      Object.values(yColumns).forEach(columnData => {
+        renderLine(canvas, ctx)({ ...otherProps, chartSize, columnData, stepX, stepY }, { lineWidth: 1.4 });
+      });
     });
-    renderFrame(canvas, ctx)({ ...otherProps, chartSize });
+  });
+
+  withNavCanvas((canvas, ctx) => {
+    const chartSize$ = getChartSizeObservable(windowSize$, canvas, { height: 60, ratio });
+    chartData$.merge([chartSize$.withName('chartSize')]).subscribe(({ chartSize, chartData, ...otherProps }) => {
+      const yColumns = omitProps(chartData, ['x']);
+      const maxDataLength = Math.max(...Object.values(yColumns).map(col => col.data.length)) - 1;
+      const maxDataValue = Math.max(...concatArrays(Object.values(yColumns).map(col => col.data)));
+      const stepX = chartSize.width / Math.max(maxDataLength, 1);
+      const stepY = (chartSize.height * 0.9) / (maxDataValue + 1);
+      clearChart(canvas, ctx)();
+      Object.values(yColumns).forEach(columnData => {
+        renderLine(canvas, ctx)({ ...otherProps, chartSize, columnData, stepX, stepY });
+      });
+      renderFrame(canvas, ctx)({ ...otherProps, chartSize });
+    });
   });
 
   /* const slider$ = */ getSliderObservable();
