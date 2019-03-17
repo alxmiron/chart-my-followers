@@ -1,10 +1,9 @@
 const getSliderObservable = require('./slider');
 const Observable = require('./observable');
-const { getChartSizeObservable, clearChart, getGridRows } = require('./chart');
-const { renderLineChart, renderFrame, renderTimeline, renderGrid, renderGridValues, renderTooltip } = require('./chart');
+const { getChartSizeObservable, renderChart } = require('./chart');
 const { renderDataSelect, getSwitchesObservable, renderColumnControls, updateSwitchesSubscriptions } = require('./controls');
 const { formatChartData } = require('./data');
-const { getDeviceRatio, omitProps, concatArrays } = require('./utils');
+const { getDeviceRatio, omitProps } = require('./utils');
 const { debug, debugDir } = require('./debug');
 
 const bootstrap = () => {
@@ -68,7 +67,6 @@ const bootstrap = () => {
   const withNavCanvas = fn => fn(navCanvas, navCtx);
 
   withBigCanvas((canvas, ctx) => {
-    const bottomOffset = 20;
     const chartSize$ = getChartSizeObservable(windowSize$, canvas, { height: 420, ratio }).withName('chartSize');
 
     const bigChartData$ = chartData$
@@ -91,52 +89,18 @@ const bootstrap = () => {
       .withOption('saveLastValue', false)
       .withName('chartClick');
 
-    const getChartSteps = ({ chartSize, chartData }, { yColumns } = {}) => {
-      const dataColumns = yColumns || omitProps(chartData, ['x']);
-      const maxDataLength = Math.max(...Object.values(dataColumns).map(col => col.data.length)) - 1;
-      const maxDataValue = Math.max(...concatArrays(Object.values(dataColumns).map(col => col.data)));
-      const stepX = chartSize.width / Math.max(maxDataLength, 1);
-      const stepY = (chartSize.height * 0.9) / (maxDataValue + 1);
-      return { stepX, stepY, maxDataValue, maxDataLength };
-    };
-
-    /* const tooltip$ = */ chartClick$
-      .merge([bigChartData$, chartSize$])
-      .withOption('saveLastValue', false)
-      .filter(data => !!data.chartClick)
-      .subscribe(({ chartSize, chartData, chartClick }) => {
-        const { stepX, stepY } = getChartSteps({ chartSize, chartData });
-        renderTooltip(canvas, ctx)({ chartSize, chartData, chartClick, stepX, stepY }, { bottomOffset });
-      });
-
-    bigChartData$.merge([chartSize$]).subscribe(({ chartSize, chartData }) => {
-      const yColumns = omitProps(chartData, ['x']);
-      const { stepX, stepY, maxDataValue } = getChartSteps({ chartSize, chartData }, { yColumns });
-      clearChart(canvas, ctx)();
-      const gridRows = getGridRows({ chartSize, chartData, stepX, stepY, maxDataValue }, { bottomOffset });
-      renderGrid(canvas, ctx)(gridRows, chartSize);
-      Object.values(yColumns).forEach(columnData => {
-        renderLineChart(canvas, ctx)({ chartSize, columnData, stepX, stepY }, { lineWidth: 1.4, bottomOffset });
-      });
-      renderGridValues(canvas, ctx)(gridRows, chartSize);
-      renderTimeline(canvas, ctx)({ chartSize, chartData });
+    bigChartData$.merge([chartSize$, chartClick$]).subscribe(({ chartSize, chartData, chartClick }) => {
+      const options = { withGrid: true, withTimeline: true, withTooltip: true, lineWidth: 1.4, bottomOffset: 20 };
+      renderChart(canvas, ctx)({ chartSize, chartData, chartClick }, options);
     });
   });
 
   withNavCanvas((canvas, ctx) => {
     const chartSize$ = getChartSizeObservable(windowSize$, canvas, { height: 60, ratio }).withName('chartSize');
 
-    chartData$.merge([chartSize$]).subscribe(({ chartSize, chartData, ...otherProps }) => {
-      const yColumns = omitProps(chartData, ['x']);
-      const maxDataLength = Math.max(...Object.values(yColumns).map(col => col.data.length)) - 1;
-      const maxDataValue = Math.max(...concatArrays(Object.values(yColumns).map(col => col.data)));
-      const stepX = chartSize.width / Math.max(maxDataLength, 1);
-      const stepY = (chartSize.height * 0.9) / (maxDataValue + 1);
-      clearChart(canvas, ctx)();
-      Object.values(yColumns).forEach(columnData => {
-        renderLineChart(canvas, ctx)({ ...otherProps, chartSize, columnData, stepX, stepY });
-      });
-      renderFrame(canvas, ctx)({ ...otherProps, chartSize });
+    chartData$.merge([chartSize$]).subscribe(({ chartSize, chartData }) => {
+      const options = { withFrame: true };
+      renderChart(canvas, ctx)({ chartSize, chartData }, options);
     });
   });
 

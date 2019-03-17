@@ -1,5 +1,5 @@
 // const { debug } = require('./debug');
-const { getDataValueCoords, getTooltipPoint, getDateText } = require('./utils');
+const { getDataValueCoords, getTooltipPoint, omitProps, concatArrays, getDateText } = require('./utils');
 
 const renderLine = (canvas, ctx) => (x0, y0, x1, y1, { color = '#eaeaea', lineWidth = 1, ratio = 1 } = {}) => {
   ctx.strokeStyle = color.toUpperCase();
@@ -26,21 +26,22 @@ const formatGridValue = value => {
   return `${value}`;
 };
 
-exports.getChartSizeObservable = (windowSize$, canvas, { ratio, height }) => {
-  const chartSize$ = windowSize$
-    .map(windowSize => ({ ratio, width: (windowSize.width - windowSize.paddings) * ratio, height: height * ratio }), { inheritLastValue: true })
-    .subscribe(chartSize => resizeChart(canvas, chartSize))
-    .repeatLast();
-  return chartSize$;
+const getChartSteps = ({ chartSize, chartData }) => {
+  const dataColumns = omitProps(chartData, ['x']);
+  const maxDataLength = Math.max(...Object.values(dataColumns).map(col => col.data.length)) - 1;
+  const maxDataValue = Math.max(...concatArrays(Object.values(dataColumns).map(col => col.data)));
+  const stepX = chartSize.width / Math.max(maxDataLength, 1);
+  const stepY = (chartSize.height * 0.9) / (maxDataValue + 1);
+  return { stepX, stepY, maxDataValue, maxDataLength };
 };
 
-exports.renderFrame = (canvas, ctx) => ({ chartSize }) => {
+const renderFrame = (canvas, ctx) => ({ chartSize }) => {
   const color = '#d6d5d4';
   renderLine(canvas, ctx)(0, 0, chartSize.width, 0, { color, ratio: chartSize.ratio });
   renderLine(canvas, ctx)(0, chartSize.height, chartSize.width, chartSize.height, { color, ratio: chartSize.ratio });
 };
 
-exports.renderLineChart = (canvas, ctx) => ({ columnData, chartSize, stepX, stepY }, { lineWidth = 1, bottomOffset = 0 } = {}) => {
+const renderLineChart = (canvas, ctx) => ({ columnData, chartSize, stepX, stepY }, { lineWidth = 1, bottomOffset = 0 } = {}) => {
   ctx.strokeStyle = columnData.color.toUpperCase();
   ctx.lineWidth = lineWidth * chartSize.ratio;
   ctx.beginPath();
@@ -51,7 +52,7 @@ exports.renderLineChart = (canvas, ctx) => ({ columnData, chartSize, stepX, step
   ctx.stroke();
 };
 
-exports.renderTimeline = (canvas, ctx) => ({ chartSize, chartData }, { bottomOffset = 4 } = {}) => {
+const renderTimeline = (canvas, ctx) => ({ chartSize, chartData }, { bottomOffset = 4 } = {}) => {
   ctx.font = `lighter ${12 * chartSize.ratio}px sans-serif`;
   ctx.fillStyle = '#a5a5a5';
   const labelWidth = 100 * chartSize.ratio;
@@ -78,7 +79,7 @@ exports.renderTimeline = (canvas, ctx) => ({ chartSize, chartData }, { bottomOff
     });
 };
 
-exports.getGridRows = ({ chartSize, maxDataValue }, { bottomOffset = 0 }) => {
+const getGridRows = ({ chartSize, maxDataValue }, { bottomOffset = 0 }) => {
   const rowsAmount = 5;
   const gridRows = Array(rowsAmount)
     .fill(1)
@@ -91,13 +92,13 @@ exports.getGridRows = ({ chartSize, maxDataValue }, { bottomOffset = 0 }) => {
   return gridRows;
 };
 
-exports.renderGrid = (canvas, ctx) => (gridRows, chartSize) => {
+const renderGrid = (canvas, ctx) => (gridRows, chartSize) => {
   gridRows.forEach(row => {
     renderLine(canvas, ctx)(0, row.level, chartSize.width, row.level, { ratio: chartSize.ratio });
   });
 };
 
-exports.renderGridValues = (canvas, ctx) => (gridRows, chartSize) => {
+const renderGridValues = (canvas, ctx) => (gridRows, chartSize) => {
   gridRows.forEach(row => {
     ctx.font = `lighter ${12 * chartSize.ratio}px sans-serif`;
     ctx.fillStyle = '#a5a5a5';
@@ -105,7 +106,7 @@ exports.renderGridValues = (canvas, ctx) => (gridRows, chartSize) => {
   });
 };
 
-exports.clearChart = (canvas, ctx) => () => {
+const clearChart = (canvas, ctx) => () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 };
 
@@ -116,12 +117,36 @@ const resizeChart = (canvas, chartSize) => {
   canvas.style.height = chartSize.height / chartSize.ratio + 'px';
 };
 
-exports.renderTooltip = (canvas, ctx) => ({ chartSize, chartData, chartClick, stepX, stepY }, { bottomOffset } = {}) => {
+const renderTooltip = (canvas, ctx) => ({ chartSize, chartData, chartClick, stepX, stepY }, { bottomOffset = 0 } = {}) => {
   const pointData = getTooltipPoint({ chartSize, chartData, chartClick, stepX, stepY }, { bottomOffset });
   const points = Object.values(pointData.data);
   if (!points.length) return;
-  renderLine(canvas, ctx)(points[0].coords.x, 0, points[0].coords.x, chartSize.height, { ratio: chartSize.ratio });
+  renderLine(canvas, ctx)(points[0].coords.x, 0, points[0].coords.x, chartSize.height - bottomOffset * chartSize.ratio, { ratio: chartSize.ratio });
   Object.values(pointData.data).forEach(column => {
     renderCircle(canvas, ctx)(column.coords.x, column.coords.y, 4, { color: column.color, lineWidth: 3, ratio: chartSize.ratio });
   });
+};
+
+exports.renderChart = (canvas, ctx) => ({ chartSize, chartData, chartClick }, options = {}) => {
+  const { withGrid, withTimeline, withTooltip, withFrame, lineWidth = 1, bottomOffset = 0 } = options;
+  const yColumns = omitProps(chartData, ['x']);
+  const { stepX, stepY, maxDataValue } = getChartSteps({ chartSize, chartData });
+  clearChart(canvas, ctx)();
+  const gridRows = withGrid ? getGridRows({ chartSize, chartData, stepX, stepY, maxDataValue }, { bottomOffset }) : [];
+  if (gridRows.length) renderGrid(canvas, ctx)(gridRows, chartSize);
+  Object.values(yColumns).forEach(columnData => {
+    renderLineChart(canvas, ctx)({ chartSize, columnData, stepX, stepY }, { lineWidth, bottomOffset });
+  });
+  if (withFrame) renderFrame(canvas, ctx)({ chartSize });
+  if (gridRows.length) renderGridValues(canvas, ctx)(gridRows, chartSize);
+  if (withTimeline) renderTimeline(canvas, ctx)({ chartSize, chartData });
+  if (withTooltip && chartClick) renderTooltip(canvas, ctx)({ chartSize, chartData, chartClick, stepX, stepY }, { bottomOffset });
+};
+
+exports.getChartSizeObservable = (windowSize$, canvas, { ratio, height }) => {
+  const chartSize$ = windowSize$
+    .map(windowSize => ({ ratio, width: (windowSize.width - windowSize.paddings) * ratio, height: height * ratio }), { inheritLastValue: true })
+    .subscribe(chartSize => resizeChart(canvas, chartSize))
+    .repeatLast();
+  return chartSize$;
 };
