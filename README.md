@@ -1,1 +1,1 @@
-telegram-charts-2
+# Chart-my-followers mini app
