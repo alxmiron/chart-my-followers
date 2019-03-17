@@ -78,7 +78,10 @@ const bootstrap = () => {
         return Object.values(chartData).reduce((acc, column) => {
           const leftIndex = Math.floor(column.data.length * left);
           const rightIndex = Math.ceil(column.data.length * right);
-          acc[column.id] = { ...column, data: column.data.slice(leftIndex, rightIndex) };
+          const fixedRightIndex = rightIndex - leftIndex < 2 ? leftIndex + 2 : rightIndex;
+          const normalLeftIndex = Math.min(leftIndex, column.data.length - 2);
+          const normalRightIndex = Math.max(fixedRightIndex, 2);
+          acc[column.id] = { ...column, data: column.data.slice(normalLeftIndex, normalRightIndex) };
           return acc;
         }, {});
       })
