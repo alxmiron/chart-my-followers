@@ -29,8 +29,8 @@ const formatGridValue = value => {
 
 const getChartSteps = ({ chartSize, chartData }, { topOffsetPercent = 0, bottomOffset = 0 } = {}) => {
   const dataColumns = omitProps(chartData, ['x']);
-  const maxDataLength = Math.max(...Object.values(dataColumns).map(col => col.data.length)) - 1;
-  const maxDataValue = Math.max(...concatArrays(Object.values(dataColumns).map(col => col.data)));
+  const maxDataLength = Math.max(Math.max(...Object.values(dataColumns).map(col => col.data.length)) - 1, 0);
+  const maxDataValue = Math.max(Math.max(...concatArrays(Object.values(dataColumns).map(col => col.data))), 0);
   const stepX = chartSize.width / Math.max(maxDataLength, 1);
   const stepY = (chartSize.height * (1 - topOffsetPercent) - bottomOffset * chartSize.ratio) / maxDataValue;
   return { stepX, stepY, maxDataValue, maxDataLength };
@@ -80,13 +80,14 @@ const renderTimeline = (canvas, ctx) => ({ chartSize, chartData }, { bottomOffse
     });
 };
 
-const getGridRows = ({ chartSize, maxDataValue }, { bottomOffset = 0 }) => {
-  const rowsAmount = 5;
+const getGridRows = ({ chartSize, maxDataValue }, { topOffsetPercent = 0, bottomOffset = 0 }) => {
+  if (!maxDataValue) return [];
+  const rowsAmount = 6;
   const gridRows = Array(rowsAmount)
     .fill(1)
     .map((val, idx) => Math.round((idx * maxDataValue) / rowsAmount))
     .map((value, idx, arr) => {
-      const interval = (chartSize.height - bottomOffset * chartSize.ratio) / arr.length;
+      const interval = (chartSize.height * (1 - topOffsetPercent) - bottomOffset * chartSize.ratio) / arr.length;
       const level = chartSize.height - bottomOffset * chartSize.ratio - interval * idx;
       return { value, level, label: formatGridValue(value) };
     });
@@ -169,7 +170,7 @@ exports.renderChart = (canvas, ctx, $tooltipContainer) => ({ chartSize, chartDat
   const { stepX, stepY, maxDataValue } = getChartSteps({ chartSize, chartData }, { topOffsetPercent, bottomOffset });
   clearChart(canvas, ctx)();
   clearNodeChildren($tooltipContainer);
-  const gridRows = withGrid ? getGridRows({ chartSize, chartData, stepX, stepY, maxDataValue }, { bottomOffset }) : [];
+  const gridRows = withGrid ? getGridRows({ chartSize, chartData, stepX, stepY, maxDataValue }, { topOffsetPercent, bottomOffset }) : [];
   if (gridRows.length) renderGrid(canvas, ctx)(gridRows, chartSize);
   Object.values(yColumns).forEach(columnData => {
     renderLineChart(canvas, ctx)({ chartSize, columnData, stepX, stepY }, { lineWidth, bottomOffset });
