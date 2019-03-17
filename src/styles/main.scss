@@ -3,6 +3,10 @@
 @import './controls';
 @import './tooltip';
 
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -17,7 +21,7 @@ h1 {
 }
 
 #root {
-  padding: 10px;
+  padding: 10px 10px 0;
 }
 
 .big-canvas-container {

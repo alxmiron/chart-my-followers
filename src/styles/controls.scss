@@ -1,39 +1,113 @@
+$switch-size: 40px;
+
 .controls {
+  width: 100%;
   padding: 10px 0;
   display: flex;
   overflow: scroll;
 }
 
-.switches {
-  display: flex;
-}
-
-.switch {
-  padding: 5px 10px 5px 5px;
-  height: 30px;
-  min-width: 30px;
-  border: 1px solid $grey1;
-  border-radius: 15px;
-  box-sizing: border-box;
-  margin-right: 10px;
-  cursor: pointer;
-  user-select: none;
-  display: flex;
-
-  input {
-    cursor: pointer;
-  }
-
-  .switch-text {
-    margin-left: 3px;
-  }
-}
-
 .select {
+  margin-left: 10px;
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
+
+  select {
+    height: 40px;
+    border: 1px solid $grey1;
+    outline: none;
+    font-size: 14px;
+    background: none;
+    width: 50px;
+  }
 
   .select-text {
-    margin-left: 3px;
+    margin-right: 3px;
+  }
+}
+
+.switches {
+  flex: 2 0 auto;
+}
+
+.switch-button {
+  border-radius: 40px;
+  outline: none;
+  position: relative;
+  padding: 6px 16px 6px 8px;
+  border: 1px solid $grey1;
+  margin-right: 10px;
+  line-height: 1;
+  height: $switch-size;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+
+  .switch-button-text {
+    margin-left: 32px;
+    user-select: none;
+  }
+}
+
+.switch-checkbox {
+  position: absolute;
+  appearance: none;
+  -webkit-appearance: none;
+  outline: none;
+  margin: 0;
+
+  &:not(:checked) + .switch-checkbox-indicator {
+    &::before {
+      width: 0;
+    }
+
+    &::after {
+      left: 0;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: $switch-size - 20px;
+      height: $switch-size - 20px;
+      border-radius: 100%;
+    }
+  }
+}
+
+.switch-checkbox-indicator {
+  position: absolute;
+  left: 8px;
+  width: $switch-size - 16px;
+  height: $switch-size - 16px;
+  border-radius: 100%;
+  background-color: $grey1;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    background-color: white;
+    height: 2px;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: auto;
+    transition: all 0.2s;
+  }
+
+  &::before {
+    width: 50%;
+    top: -2%;
+    left: 19%;
+    transform: rotateZ(-42deg);
+  }
+
+  &::after {
+    width: 30%;
+    top: 17%;
+    right: 35%;
+    transform: rotateZ(50deg);
   }
 }

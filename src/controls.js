@@ -5,10 +5,14 @@ const renderColumnControls = ($columnSwitches, sourceData) => {
   const yColumns = omitProps(sourceData, ['x']);
   clearNodeChildren($columnSwitches); // remove current switches
   Object.values(yColumns).forEach(column => {
-    const label = createElement('label', { className: 'switch' });
-    const input = createElement('input', { attributes: { name: column.id, type: 'checkbox', checked: true } });
+    const label = createElement('label', { className: 'switch-button' });
+    const input = createElement('input', { attributes: { name: column.id, type: 'checkbox', checked: true, className: 'switch-checkbox' } });
     label.appendChild(input);
-    label.appendChild(createElement('span', { className: 'switch-text', text: column.name }));
+    const indicator = createElement('span', { className: 'switch-checkbox-indicator' });
+    indicator.style.backgroundColor = column.color;
+    label.appendChild(indicator);
+    const text = createElement('span', { className: 'switch-button-text', text: column.name });
+    label.appendChild(text);
     $columnSwitches.appendChild(label);
   });
   return sourceData;

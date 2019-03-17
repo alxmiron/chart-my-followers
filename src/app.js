@@ -67,7 +67,7 @@ const bootstrap = () => {
   const withNavCanvas = fn => fn(navCanvas, navCtx);
 
   withBigCanvas((canvas, ctx) => {
-    const chartHeight = windowSize => windowSize.height - windowSize.paddings - 15 - 34 - 65 - 50;
+    const chartHeight = windowSize => windowSize.height - 10 - 15 - 34 - 65 - 60;
     const chartSize$ = getChartSizeObservable(windowSize$, canvas, { height: chartHeight, ratio }).withName('chartSize');
 
     const bigChartData$ = chartData$

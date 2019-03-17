@@ -16,6 +16,7 @@ exports.createElement = (tag, { className, text, attributes }) => {
   if (className) element.className = className;
   if (attributes) {
     Object.keys(attributes).forEach(key => {
+      element.setAttribute(key, attributes[key]);
       element[key] = attributes[key];
     });
   }
