@@ -1,27 +1,46 @@
 // const { debug } = require('./debug');
+const { getDataValueCoords, getTooltipPoint, getDateText } = require('./utils');
 
-const renderLine = (canvas, ctx) => (x0, y0, x1, y1, { color = '#eaeaea' } = {}) => {
+const renderLine = (canvas, ctx) => (x0, y0, x1, y1, { color = '#eaeaea', lineWidth = 1, ratio = 1 } = {}) => {
   ctx.strokeStyle = color.toUpperCase();
+  ctx.lineWidth = lineWidth * ratio;
   ctx.beginPath();
   ctx.moveTo(x0, y0);
-  ctx.lineTo(x1, y0);
+  ctx.lineTo(x1, y1);
   ctx.stroke();
+};
+
+const renderCircle = (canvas, ctx) => (x, y, radius, { color = 'black', lineWidth = 1, ratio = 1 } = {}) => {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth * ratio;
+  ctx.fillStyle = 'white';
+  ctx.beginPath();
+  ctx.arc(x, y, radius * ratio, 0, Math.PI * 2, true);
+  ctx.stroke();
+  ctx.fill();
+};
+
+const formatGridValue = value => {
+  if (value > 1000000) return `${(value / 1000000).toFixed(1)}M`;
+  if (value > 1000) return `${(value / 1000).toFixed(1)}K`;
+  return `${value}`;
+};
+
+exports.getChartSizeObservable = (windowSize$, canvas, { ratio, height }) => {
+  const chartSize$ = windowSize$
+    .map(windowSize => ({ ratio, width: (windowSize.width - windowSize.paddings) * ratio, height: height * ratio }), { inheritLastValue: true })
+    .subscribe(chartSize => resizeChart(canvas, chartSize))
+    .repeatLast();
+  return chartSize$;
 };
 
 exports.renderFrame = (canvas, ctx) => ({ chartSize }) => {
   const color = '#d6d5d4';
-  renderLine(canvas, ctx)(0, 0, chartSize.width, 0, { color });
-  renderLine(canvas, ctx)(0, chartSize.height, chartSize.width, chartSize.height, { color });
+  renderLine(canvas, ctx)(0, 0, chartSize.width, 0, { color, ratio: chartSize.ratio });
+  renderLine(canvas, ctx)(0, chartSize.height, chartSize.width, chartSize.height, { color, ratio: chartSize.ratio });
 };
 
-const getDataValueCoords = ({ chartSize, stepX, stepY }, { bottomOffset }) => (num, index = 0) => {
-  return {
-    x: index * stepX,
-    y: chartSize.height - bottomOffset * chartSize.ratio - num * stepY,
-  };
-};
-
-exports.renderLine = (canvas, ctx) => ({ columnData, chartSize, stepX, stepY }, { lineWidth = 1, bottomOffset = 0 } = {}) => {
+exports.renderLineChart = (canvas, ctx) => ({ columnData, chartSize, stepX, stepY }, { lineWidth = 1, bottomOffset = 0 } = {}) => {
   ctx.strokeStyle = columnData.color.toUpperCase();
   ctx.lineWidth = lineWidth * chartSize.ratio;
   ctx.beginPath();
@@ -35,11 +54,9 @@ exports.renderLine = (canvas, ctx) => ({ columnData, chartSize, stepX, stepY }, 
 exports.renderTimeline = (canvas, ctx) => ({ chartSize, chartData }, { bottomOffset = 4 } = {}) => {
   ctx.font = `lighter ${12 * chartSize.ratio}px sans-serif`;
   ctx.fillStyle = '#a5a5a5';
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const labelWidth = 100 * chartSize.ratio;
   const bestLabelsAmount = Math.floor(chartSize.width / labelWidth);
   const leaveEach = Math.ceil(chartData.x.data.length / bestLabelsAmount);
-  const getDateText = date => `${months[date.getMonth()]} ${date.getDate()}`;
   // const getTextWidth = dateText => dateText.length * 8 * chartSize.ratio;
   const firstDate = new Date(chartData.x.data[0]);
   const firstDateText = getDateText(firstDate);
@@ -61,13 +78,7 @@ exports.renderTimeline = (canvas, ctx) => ({ chartSize, chartData }, { bottomOff
     });
 };
 
-const formatGridValue = value => {
-  if (value > 1000000) return `${(value / 1000000).toFixed(1)}M`;
-  if (value > 1000) return `${(value / 1000).toFixed(1)}K`;
-  return `${value}`;
-};
-
-exports.getGridRows = ({ chartSize }, { maxDataValue, bottomOffset = 0 } = {}) => {
+exports.getGridRows = ({ chartSize, maxDataValue }, { bottomOffset = 0 }) => {
   const rowsAmount = 5;
   const gridRows = Array(rowsAmount)
     .fill(1)
@@ -82,7 +93,7 @@ exports.getGridRows = ({ chartSize }, { maxDataValue, bottomOffset = 0 } = {}) =
 
 exports.renderGrid = (canvas, ctx) => (gridRows, chartSize) => {
   gridRows.forEach(row => {
-    renderLine(canvas, ctx)(0, row.level, chartSize.width, row.level);
+    renderLine(canvas, ctx)(0, row.level, chartSize.width, row.level, { ratio: chartSize.ratio });
   });
 };
 
@@ -105,10 +116,12 @@ const resizeChart = (canvas, chartSize) => {
   canvas.style.height = chartSize.height / chartSize.ratio + 'px';
 };
 
-exports.getChartSizeObservable = (windowSize$, canvas, { ratio, height }) => {
-  const chartSize$ = windowSize$
-    .map(windowSize => ({ ratio, width: (windowSize.width - windowSize.paddings) * ratio, height: height * ratio }), { inheritLastValue: true })
-    .subscribe(chartSize => resizeChart(canvas, chartSize))
-    .repeatLast();
-  return chartSize$;
+exports.renderTooltip = (canvas, ctx) => ({ chartSize, chartData, chartClick, stepX, stepY }, { bottomOffset } = {}) => {
+  const pointData = getTooltipPoint({ chartSize, chartData, chartClick, stepX, stepY }, { bottomOffset });
+  const points = Object.values(pointData.data);
+  if (!points.length) return;
+  renderLine(canvas, ctx)(points[0].coords.x, 0, points[0].coords.x, chartSize.height, { ratio: chartSize.ratio });
+  Object.values(pointData.data).forEach(column => {
+    renderCircle(canvas, ctx)(column.coords.x, column.coords.y, 4, { color: column.color, lineWidth: 3, ratio: chartSize.ratio });
+  });
 };

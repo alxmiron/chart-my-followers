@@ -1,14 +1,19 @@
 class Observable {
-  constructor(name) {
+  constructor(name, { saveLastValue = true } = {}) {
     this.observers = [];
     this.name = name;
+    this.saveLastValue = saveLastValue;
   }
   broadcast(data) {
     this.observers.forEach(subscriber => subscriber(data));
-    this.lastValue = data;
+    if (this.saveLastValue) this.lastValue = data;
   }
   withName(name) {
     this.name = name;
+    return this;
+  }
+  withOption(name, value) {
+    this[name] = value;
     return this;
   }
   subscribe(fn) {

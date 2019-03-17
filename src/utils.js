@@ -1,7 +1,5 @@
-const getDeviceRatio = ctx => {
+exports.getDeviceRatio = ctx => {
   const devicePixelRatio = window.devicePixelRatio || 1;
-
-  // determine the 'backing store ratio' of the canvas context
   const backingStoreRatio =
     ctx.webkitBackingStorePixelRatio ||
     ctx.mozBackingStorePixelRatio ||
@@ -9,8 +7,6 @@ const getDeviceRatio = ctx => {
     ctx.oBackingStorePixelRatio ||
     ctx.backingStorePixelRatio ||
     1;
-
-  // determine the actual ratio we want to draw at
   const ratio = devicePixelRatio / backingStoreRatio;
   return ratio;
 };
@@ -23,13 +19,52 @@ const omitProps = (object, propNames) => {
   }, {});
 };
 
-// const pickProps = (object, propNames) => {
-//   return propNames.reduce((acc, key) => {
-//     acc[key] = object[key];
-//     return acc;
-//   }, {});
-// };
+exports.omitProps = omitProps;
 
-const concatArrays = arrays => arrays.reduce((acc, arr) => acc.concat(arr), []);
+exports.concatArrays = arrays => arrays.reduce((acc, arr) => acc.concat(arr), []);
 
-module.exports = { getDeviceRatio, omitProps, concatArrays };
+const getDateText = (date, { showDay } = {}) => {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const label = `${months[date.getMonth()]} ${date.getDate()}`;
+  if (showDay) {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return `${days[date.getDay()]}, ${label}`;
+  }
+  return label;
+};
+
+exports.getDateText = getDateText;
+
+const getDataValueCoords = ({ chartSize, stepX, stepY }, { bottomOffset = 0 } = {}) => (num = 0, index = 0) => {
+  return {
+    x: index * stepX,
+    y: chartSize.height - bottomOffset * chartSize.ratio - num * stepY,
+  };
+};
+
+exports.getDataValueCoords = getDataValueCoords;
+
+const getTooltipPoint = ({ chartSize, chartData, chartClick, stepX, stepY }, { bottomOffset } = {}) => {
+  const percentage = (chartClick.x * chartSize.ratio) / chartSize.width;
+  const targetIndex = Math.round(Math.max(chartData.x.data.length - 1, 1) * percentage);
+  const date = new Date(chartData.x.data[targetIndex]);
+  const pointData = {
+    targetIndex,
+    date,
+    label: getDateText(date, { showDay: true }),
+    data: Object.values(omitProps(chartData, ['x']))
+      .reverse()
+      .reduce((acc, column) => {
+        acc[column.id] = {
+          name: column.name,
+          value: column.data[targetIndex],
+          color: column.color,
+          coords: getDataValueCoords({ chartSize, stepX, stepY }, { bottomOffset })(column.data[targetIndex], targetIndex),
+        };
+        return acc;
+      }, {}),
+  };
+  return pointData;
+};
+
+exports.getTooltipPoint = getTooltipPoint;
