@@ -1,0 +1,33 @@
+.tooltip-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.tooltip {
+  border: 1px solid $grey1;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: white;
+  box-shadow: rgba($grey1, 0.5) 0px 2px 2px 0px;
+
+  time {
+    font-size: 14px;
+  }
+}
+
+.values-container {
+  display: flex;
+  margin-top: 8px;
+}
+
+.value-container {
+  display: flex;
+  flex-direction: column;
+  padding-right: 14px;
+
+  .value {
+    font-size: 17px;
+    font-weight: 600;
+  }
+}

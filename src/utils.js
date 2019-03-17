@@ -11,6 +11,22 @@ exports.getDeviceRatio = ctx => {
   return ratio;
 };
 
+exports.createElement = (tag, { className, text, attributes }) => {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (attributes) {
+    Object.keys(attributes).forEach(key => {
+      element[key] = attributes[key];
+    });
+  }
+  if (text) element.appendChild(document.createTextNode(text));
+  return element;
+};
+
+exports.clearNodeChildren = $node => {
+  while ($node.firstChild) $node.removeChild($node.firstChild);
+};
+
 const omitProps = (object, propNames) => {
   return Object.keys(object).reduce((acc, key) => {
     if (propNames.includes(key)) return acc;
@@ -44,7 +60,7 @@ const getDataValueCoords = ({ chartSize, stepX, stepY }, { bottomOffset = 0 } = 
 
 exports.getDataValueCoords = getDataValueCoords;
 
-const getTooltipPoint = ({ chartSize, chartData, chartClick, stepX, stepY }, { bottomOffset } = {}) => {
+exports.getTooltipPoint = ({ chartSize, chartData, chartClick, stepX, stepY }, { bottomOffset } = {}) => {
   const percentage = (chartClick.x * chartSize.ratio) / chartSize.width;
   const targetIndex = Math.round(Math.max(chartData.x.data.length - 1, 1) * percentage);
   const date = new Date(chartData.x.data[targetIndex]);
@@ -66,5 +82,3 @@ const getTooltipPoint = ({ chartSize, chartData, chartClick, stepX, stepY }, { b
   };
   return pointData;
 };
-
-exports.getTooltipPoint = getTooltipPoint;

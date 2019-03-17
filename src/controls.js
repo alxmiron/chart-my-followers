@@ -1,21 +1,14 @@
 const Observable = require('./observable');
-const { omitProps } = require('./utils');
+const { omitProps, clearNodeChildren, createElement } = require('./utils');
 
 const renderColumnControls = ($columnSwitches, sourceData) => {
   const yColumns = omitProps(sourceData, ['x']);
-  while ($columnSwitches.firstChild) $columnSwitches.removeChild($columnSwitches.firstChild); // remove current switches
+  clearNodeChildren($columnSwitches); // remove current switches
   Object.values(yColumns).forEach(column => {
-    const label = document.createElement('label');
-    label.className = 'switch';
-    const input = document.createElement('input');
-    input.name = column.id;
-    input.type = 'checkbox';
-    input.checked = true;
+    const label = createElement('label', { className: 'switch' });
+    const input = createElement('input', { attributes: { name: column.id, type: 'checkbox', checked: true } });
     label.appendChild(input);
-    const span = document.createElement('span');
-    span.className = 'switch-text';
-    span.appendChild(document.createTextNode(column.name));
-    label.appendChild(span);
+    label.appendChild(createElement('span', { className: 'switch-text', text: column.name }));
     $columnSwitches.appendChild(label);
   });
   return sourceData;
@@ -48,9 +41,7 @@ const getSwitchesObservable = $columnSwitches => {
 
 const renderDataSelect = ($dataSelect, dataset) => {
   Object.values(dataset).forEach((dataCase, index) => {
-    const option = document.createElement('option');
-    option.value = index;
-    option.appendChild(document.createTextNode(`${index + 1}`));
+    const option = createElement('option', { attributes: { value: index }, text: `${index + 1}` });
     $dataSelect.appendChild(option);
   });
   return dataset;

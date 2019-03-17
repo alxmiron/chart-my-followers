@@ -19,6 +19,7 @@ const bootstrap = () => {
 
   const $dataSelect = document.getElementById('dataset-select');
   const $columnSwitches = document.getElementById('column-switches');
+  const $tooltipContainer = document.getElementById('tooltip-container');
 
   const dataSelect$ = new Observable('dataSelect')
     .fromEvent($dataSelect, 'change')
@@ -67,7 +68,7 @@ const bootstrap = () => {
   const withNavCanvas = fn => fn(navCanvas, navCtx);
 
   withBigCanvas((canvas, ctx) => {
-    const chartSize$ = getChartSizeObservable(windowSize$, canvas, { height: 420, ratio }).withName('chartSize');
+    const chartSize$ = getChartSizeObservable(windowSize$, canvas, { height: 500, ratio }).withName('chartSize');
 
     const bigChartData$ = chartData$
       .merge([slider$])
@@ -90,8 +91,8 @@ const bootstrap = () => {
       .withName('chartClick');
 
     bigChartData$.merge([chartSize$, chartClick$]).subscribe(({ chartSize, chartData, chartClick }) => {
-      const options = { withGrid: true, withTimeline: true, withTooltip: true, lineWidth: 1.4, bottomOffset: 20 };
-      renderChart(canvas, ctx)({ chartSize, chartData, chartClick }, options);
+      const options = { withGrid: true, withTimeline: true, withTooltip: true, lineWidth: 1.4, topOffsetPercent: 0.2, bottomOffset: 20 };
+      renderChart(canvas, ctx, $tooltipContainer)({ chartSize, chartData, chartClick }, options);
     });
   });
 
@@ -99,8 +100,8 @@ const bootstrap = () => {
     const chartSize$ = getChartSizeObservable(windowSize$, canvas, { height: 60, ratio }).withName('chartSize');
 
     chartData$.merge([chartSize$]).subscribe(({ chartSize, chartData }) => {
-      const options = { withFrame: true };
-      renderChart(canvas, ctx)({ chartSize, chartData }, options);
+      const options = { withFrame: true, topOffsetPercent: 0.1 };
+      renderChart(canvas, ctx, $tooltipContainer)({ chartSize, chartData }, options);
     });
   });
 
