@@ -137,6 +137,21 @@ const getTooltipNode = pointData => {
   return tooltip;
 };
 
+const getTooltipPosition = ({ chartSize, point, tooltipClientWidth, topOffset }) => {
+  let left = 0;
+  const shiftWidth = 15;
+  const leftFreeSpace = point.coords.x / chartSize.ratio;
+  const rightFreeSpace = (chartSize.width - point.coords.x) / chartSize.ratio;
+  if (rightFreeSpace > tooltipClientWidth) {
+    const shift = leftFreeSpace > shiftWidth ? shiftWidth : 0;
+    left = point.coords.x / chartSize.ratio - shift;
+  } else if (leftFreeSpace > tooltipClientWidth) {
+    const shift = rightFreeSpace > shiftWidth ? shiftWidth : 0;
+    left = point.coords.x / chartSize.ratio - tooltipClientWidth + shift;
+  }
+  return { left, top: topOffset };
+};
+
 const renderTooltip = (canvas, ctx, $tooltipContainer) => ({ chartSize, chartData, chartClick, stepX, stepY }, { bottomOffset = 0 } = {}) => {
   const pointData = getTooltipPoint({ chartSize, chartData, chartClick, stepX, stepY }, { bottomOffset });
   const points = Object.values(pointData.data);
@@ -153,14 +168,9 @@ const renderTooltip = (canvas, ctx, $tooltipContainer) => ({ chartSize, chartDat
   const $tooltip = getTooltipNode(pointData);
   $tooltip.style.visibility = 'hidden';
   $tooltipContainer.appendChild($tooltip);
-  const rightFreeSpace = (chartSize.width - point.coords.x) / chartSize.ratio;
-  const shift = 15;
-  $tooltipContainer.style.top = `${topOffset}px`;
-  if (rightFreeSpace < $tooltip.clientWidth) {
-    $tooltipContainer.style.left = `${point.coords.x / chartSize.ratio - $tooltip.clientWidth + shift}px`;
-  } else {
-    $tooltipContainer.style.left = `${point.coords.x / chartSize.ratio - shift}px`;
-  }
+  const position = getTooltipPosition({ chartSize, point, topOffset, tooltipClientWidth: $tooltip.clientWidth });
+  $tooltipContainer.style.top = `${position.top}px`;
+  $tooltipContainer.style.left = `${position.left}px`;
   $tooltip.style.visibility = 'visible';
 };
 

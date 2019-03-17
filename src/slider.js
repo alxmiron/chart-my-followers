@@ -4,11 +4,7 @@ module.exports = function getSliderObservable() {
   const rangeSlider = sliderFactory();
   const sliderNode = document.getElementById('navigation-handler');
 
-  rangeSlider.create(sliderNode, {
-    start: [60, 85],
-    connect: [true, true, true],
-    range: { min: 0, max: 100 },
-  });
+  rangeSlider.create(sliderNode, { start: [60, 85], margin: 10 });
 
   const slider$ = new Observable('slider');
   sliderNode.sliderApi.on('update', data => slider$.broadcast(data));
@@ -467,11 +463,12 @@ function sliderFactory() {
       cssClasses: { r: true, t: testCssClasses },
     };
     const defaults = {
-      connect: true,
+      connect: [true, true, true],
       direction: 'ltr',
       behaviour: 'drag',
       orientation: 'horizontal',
       cssPrefix: 'slider-',
+      range: { min: 0, max: 100 },
       cssClasses: {
         target: 'target',
         base: 'base',
