@@ -1,3 +1,5 @@
+const sass = require('node-sass');
+
 module.exports = function(grunt) {
   require('load-grunt-tasks')(grunt);
 
@@ -9,7 +11,7 @@ module.exports = function(grunt) {
     browserify: {
       build: {
         files: {
-          'build/js/bundle.js': ['src/app.js'],
+          'dist/js/bundle.js': ['src/app.js'],
         },
         options: {
           browserifyOptions: {
@@ -20,13 +22,13 @@ module.exports = function(grunt) {
     },
 
     sass: {
+      options: {
+        implementation: sass,
+        sourceMap: true,
+      },
       dist: {
         files: {
-          'build/css/bundle.css': ['src/styles/main.scss'],
-        },
-        options: {
-          style: PRODUCTION ? 'compact' : 'expanded',
-          sourcemap: PRODUCTION ? 'none' : 'file',
+          'dist/css/bundle.css': ['src/styles/main.scss'],
         },
       },
     },
@@ -37,7 +39,7 @@ module.exports = function(grunt) {
           pretty: !PRODUCTION,
         },
         files: {
-          'build/index.html': ['src/views/index.jade'],
+          'dist/index.html': ['src/views/index.jade'],
         },
       },
     },
@@ -65,7 +67,7 @@ module.exports = function(grunt) {
         expand: true,
         cwd: './src',
         src: ['./assets/*'],
-        dest: 'build/',
+        dest: 'dist/',
       },
     },
 
@@ -76,7 +78,7 @@ module.exports = function(grunt) {
       uglify: {
         files: [
           {
-            'build/js/bundle.js': ['build/js/bundle.js'],
+            'dist/js/bundle.js': ['dist/js/bundle.js'],
           },
         ],
       },
@@ -87,9 +89,9 @@ module.exports = function(grunt) {
         files: [
           {
             expand: true,
-            cwd: 'build/css/',
+            cwd: 'dist/css/',
             src: '*.css',
-            dest: 'build/css',
+            dest: 'dist/css',
             ext: '.css',
           },
         ],
@@ -98,18 +100,18 @@ module.exports = function(grunt) {
 
     browserSync: {
       bsFiles: {
-        src: ['build/*.html'],
+        src: ['dist/*.html'],
       },
       options: {
         watchTask: true,
         server: {
-          baseDir: './build',
+          baseDir: './dist',
         },
       },
     },
 
     clean: {
-      build: ['./build/'],
+      build: ['./dist/'],
       options: {
         force: true,
       },
