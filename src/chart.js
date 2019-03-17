@@ -182,7 +182,14 @@ exports.renderChart = (canvas, ctx, $tooltipContainer) => ({ chartSize, chartDat
 
 exports.getChartSizeObservable = (windowSize$, canvas, { ratio, height }) => {
   const chartSize$ = windowSize$
-    .map(windowSize => ({ ratio, width: (windowSize.width - windowSize.paddings) * ratio, height: height * ratio }), { inheritLastValue: true })
+    .map(
+      windowSize => {
+        const chartWidth = (windowSize.width - windowSize.paddings) * ratio;
+        const chartHeight = (typeof height === 'function' ? height(windowSize) : height) * ratio;
+        return { ratio, width: chartWidth, height: chartHeight };
+      },
+      { inheritLastValue: true },
+    )
     .subscribe(chartSize => resizeChart(canvas, chartSize))
     .repeatLast();
   return chartSize$;

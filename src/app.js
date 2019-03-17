@@ -55,10 +55,9 @@ const bootstrap = () => {
     .fromEvent(window, 'resize')
     .map(event => ({
       width: event.target.innerWidth,
-      windowHeight: event.target.innerHeight,
+      height: event.target.innerHeight,
       paddings: 20,
     }))
-    .filter((windowSize, prevWindowSize) => !prevWindowSize || windowSize.width !== prevWindowSize.width)
     .withInitialEvent({ width: window.innerWidth, height: window.innerHeight, paddings: 20 });
 
   // Navigation slider
@@ -68,7 +67,8 @@ const bootstrap = () => {
   const withNavCanvas = fn => fn(navCanvas, navCtx);
 
   withBigCanvas((canvas, ctx) => {
-    const chartSize$ = getChartSizeObservable(windowSize$, canvas, { height: 500, ratio }).withName('chartSize');
+    const chartHeight = windowSize => windowSize.height - windowSize.paddings - 15 - 34 - 65 - 50;
+    const chartSize$ = getChartSizeObservable(windowSize$, canvas, { height: chartHeight, ratio }).withName('chartSize');
 
     const bigChartData$ = chartData$
       .merge([slider$])
