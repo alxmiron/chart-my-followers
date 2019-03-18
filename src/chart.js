@@ -1,4 +1,4 @@
-const { getDataValueCoords, getTooltipPoint, omitProps, concatArrays, getDateText } = require('./utils');
+const { getDataValueCoords, getTooltipPoint, omitProps, getDateText } = require('./utils');
 const { createElement, clearNodeChildren } = require('./utils');
 
 const renderLine = (canvas, ctx) => (x0, y0, x1, y1, { color = '#eaeaea', lineWidth = 1, ratio = 1 } = {}) => {
@@ -27,23 +27,34 @@ const formatGridValue = value => {
 };
 
 const getChartSteps = ({ chartSize, chartData }, { topOffsetPercent = 0, bottomOffset = 0 } = {}) => {
-  const dataColumns = omitProps(chartData, ['x', 'slider']);
-  const maxDataLength = Math.max(Math.max(...Object.values(dataColumns).map(col => col.data.length)) - 1, 0);
-  const maxDataValue = Math.max(Math.max(...concatArrays(Object.values(dataColumns).map(col => col.data))), 0);
-  const stepX = chartSize.width / Math.max(maxDataLength, 1);
+  const yColumns = omitProps(chartData.columns, ['x']);
+  const totalLength = chartData.columns.x.data.length - 1;
+  const stepX = chartSize.width / ((chartData.slider.right - chartData.slider.left) * totalLength);
+  const totalWidth = totalLength * stepX;
+  const scrollOffset = totalWidth * chartData.slider.left;
+  const leftSideIndex = Math.round(chartData.columns.x.data.length * chartData.slider.left);
+  const rightSideIndex = Math.round(chartData.columns.x.data.length * chartData.slider.right) - 1;
+  const maxDataValue = Math.max(
+    ...Object.values(yColumns)
+      .map(col => col.data.slice(leftSideIndex, rightSideIndex + 1))
+      .reduce((acc, arr) => acc.concat(arr), []),
+  );
   const stepY = (chartSize.height * (1 - topOffsetPercent) - bottomOffset * chartSize.ratio) / maxDataValue;
-  return { stepX, stepY, maxDataValue, maxDataLength };
+  return { stepX, stepY, maxDataValue, scrollOffset };
 };
 
-const renderLineChart = (canvas, ctx) => ({ columnData, chartSize, stepX, stepY }, { lineWidth = 1, bottomOffset = 0 } = {}) => {
-  ctx.strokeStyle = columnData.color.toUpperCase();
-  ctx.lineWidth = lineWidth * chartSize.ratio;
-  ctx.beginPath();
-  columnData.data.forEach((num, index) => {
-    const coords = getDataValueCoords({ chartSize, stepX, stepY }, { bottomOffset })(num, index);
-    ctx.lineTo(coords.x, coords.y);
+const renderLinesChart = (canvas, ctx) => ({ chartSize, chartData, stepX, stepY, scrollOffset }, { lineWidth = 1, bottomOffset = 0 } = {}) => {
+  const yColumns = omitProps(chartData.columns, ['x']);
+  Object.values(yColumns).forEach(columnData => {
+    ctx.strokeStyle = columnData.color.toUpperCase();
+    ctx.lineWidth = lineWidth * chartSize.ratio;
+    ctx.beginPath();
+    columnData.data.forEach((num, index) => {
+      const coords = getDataValueCoords({ chartSize, chartData, stepX, stepY }, { scrollOffset, bottomOffset })(num, index);
+      ctx.lineTo(coords.x, coords.y);
+    });
+    ctx.stroke();
   });
-  ctx.stroke();
 };
 
 const renderTimeline = (canvas, ctx) => ({ chartSize, chartData, darkTheme }, { bottomOffset = 4 } = {}) => {
@@ -51,23 +62,13 @@ const renderTimeline = (canvas, ctx) => ({ chartSize, chartData, darkTheme }, { 
   ctx.fillStyle = darkTheme ? '#546778' : '#a5a5a5';
   const labelWidth = 100 * chartSize.ratio;
   const bestLabelsAmount = Math.floor(chartSize.width / labelWidth);
-  const leaveEach = Math.ceil(chartData.x.data.length / bestLabelsAmount);
-  // const getTextWidth = dateText => dateText.length * 8 * chartSize.ratio;
-  const firstDate = new Date(chartData.x.data[0]);
-  const firstDateText = getDateText(firstDate);
-  // debug('firstDateText', firstDateText);
-  const lastDate = new Date(chartData.x.data[chartData.x.data.length - 1]);
-  const lastDateText = getDateText(lastDate);
-  // debug('lastDateText', lastDateText);
-  chartData.x.data
+  const leaveEach = Math.ceil(chartData.columns.x.data.length / bestLabelsAmount);
+  chartData.columns.x.data
     .filter((value, index, arr) => index % leaveEach === 0 || index === arr.length - 1)
     .forEach((timestamp, index, arr) => {
-      const isFirst = index === 0;
-      const isLast = index === arr.length - 1;
-      const date = isFirst ? firstDate : isLast ? lastDate : new Date(timestamp);
-      const dateText = isFirst ? firstDateText : isLast ? lastDateText : getDateText(date);
+      const dateText = getDateText(new Date(timestamp));
       const interval = chartSize.width / arr.length;
-      const correction = 0; // isLast ? interval - getTextWidth(dateText) : 0;
+      const correction = 0;
       const leftOffset = interval * index + correction;
       ctx.fillText(dateText, leftOffset, chartSize.height - bottomOffset * chartSize.ratio);
     });
@@ -146,10 +147,10 @@ const getTooltipPosition = ({ chartSize, point, tooltipClientWidth, topOffset })
 };
 
 const renderTooltip = (canvas, ctx, $tooltipContainer) => (
-  { chartSize, chartData, darkTheme, chartClick, stepX, stepY },
+  { chartSize, chartData, darkTheme, chartClick, stepX, stepY, scrollOffset },
   { bottomOffset = 0 } = {},
 ) => {
-  const pointData = getTooltipPoint({ chartSize, chartData, chartClick, stepX, stepY }, { bottomOffset });
+  const pointData = getTooltipPoint({ chartSize, chartData, chartClick, stepX, stepY }, { scrollOffset, bottomOffset });
   const points = Object.values(pointData.data);
   if (!points.length) return;
   const topOffset = 5;
@@ -173,19 +174,17 @@ const renderTooltip = (canvas, ctx, $tooltipContainer) => (
 
 exports.renderChart = (canvas, ctx, $tooltipContainer) => ({ chartSize, chartData, chartClick, darkTheme }, options = {}) => {
   const { withGrid, withTimeline, withTooltip, lineWidth = 1, topOffsetPercent, bottomOffset = 0 } = options;
-  const yColumns = omitProps(chartData, ['x', 'slider']);
-  const { stepX, stepY, maxDataValue } = getChartSteps({ chartSize, chartData }, { topOffsetPercent, bottomOffset });
+  const { stepX, stepY, scrollOffset, maxDataValue } = getChartSteps({ chartSize, chartData }, { topOffsetPercent, bottomOffset });
+  // console.log(stepX, stepY, scrollOffset);
   clearChart(canvas, ctx)();
   clearNodeChildren($tooltipContainer);
   const gridRows = withGrid ? getGridRows({ chartSize, chartData, stepX, stepY, maxDataValue }, { topOffsetPercent, bottomOffset }) : [];
   if (gridRows.length) renderGrid(canvas, ctx)({ chartSize, darkTheme }, gridRows);
-  Object.values(yColumns).forEach(columnData => {
-    renderLineChart(canvas, ctx)({ chartSize, columnData, stepX, stepY }, { lineWidth, bottomOffset });
-  });
+  renderLinesChart(canvas, ctx)({ chartSize, chartData, stepX, stepY, scrollOffset }, { lineWidth, bottomOffset });
   if (gridRows.length) renderGridValues(canvas, ctx)({ chartSize, darkTheme }, gridRows);
   if (withTimeline) renderTimeline(canvas, ctx)({ chartSize, chartData, darkTheme });
   if (withTooltip && chartClick) {
-    renderTooltip(canvas, ctx, $tooltipContainer)({ chartSize, chartData, darkTheme, chartClick, stepX, stepY }, { bottomOffset });
+    renderTooltip(canvas, ctx, $tooltipContainer)({ chartSize, chartData, darkTheme, chartClick, stepX, stepY, scrollOffset }, { bottomOffset });
   }
 };
 

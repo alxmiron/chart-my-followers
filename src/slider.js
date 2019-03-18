@@ -6,63 +6,47 @@ module.exports = function getSliderObservable() {
   rangeSlider.create(sliderNode);
   const slider$ = new Observable('slider');
   sliderNode.sliderApi.on('update', data => slider$.broadcast(data));
-  return slider$;
+  const detectedSlider$ = slider$
+    .filter((values, prevValues) => !(prevValues && prevValues.join('-') === values.join('-')), { inheritLastValue: true })
+    .map(
+      values => ({
+        left: parseInt(values[0]) / 1000,
+        right: parseInt(values[1]) / 1000,
+      }),
+      { inheritLastValue: true },
+    )
+    .withName('slider');
+  return detectedSlider$;
 };
 
 function sliderFactory() {
-  function isValidFormatter(entry) {
-    return typeof entry === 'object' && typeof entry.to === 'function' && typeof entry.from === 'function';
-  }
-
-  function isSet(value) {
-    return value !== null && value !== undefined;
-  }
-
-  function preventDefault(e) {
-    e.preventDefault();
-  }
-
-  function closest(value, to) {
-    return Math.round(value / to) * to;
-  }
-
-  function isNumeric(a) {
-    return typeof a === 'number' && !isNaN(a) && isFinite(a);
-  }
-
-  function limit(a) {
-    return Math.max(Math.min(a, 100), 0);
-  }
-
-  function asArray(a) {
-    return Array.isArray(a) ? a : [a];
-  }
-
-  function countDecimals(numStr) {
+  const isSet = value => value !== null && value !== undefined;
+  const closest = (value, to) => Math.round(value / to) * to;
+  const limit = a => Math.max(Math.min(a, 100), 0);
+  const asArray = a => (Array.isArray(a) ? a : [a]);
+  const countDecimals = numStr => {
     numStr = String(numStr);
     const pieces = numStr.split('.');
     return pieces.length > 1 ? pieces[1].length : 0;
-  }
+  };
 
-  function addClass(el, className) {
+  const addClass = (el, className) => {
     if (el.classList) {
       el.classList.add(className);
     } else {
       el.className += ' ' + className;
     }
-  }
-
-  function removeClass(el, className) {
+  };
+  const removeClass = (el, className) => {
     if (el.classList) {
       el.classList.remove(className);
     } else {
       el.className = el.className.replace(new RegExp('(^|\\b)' + className.split(' ').join('|') + '(\\b|$)', 'gi'), ' ');
     }
-  }
-
-  function hasClass(el, className) {
+  };
+  const hasClass = (el, className) => {
     return el.classList ? el.classList.contains(className) : new RegExp('\\b' + className + '\\b').test(el.className);
-  }
+  };
 
   function getPageOffset(doc) {
     const supportPageOffset = window.pageXOffset !== undefined;
@@ -154,15 +138,9 @@ function sliderFactory() {
     return isPercentage([va, vb], (value - pa) * subRangeRatio(pa, pb));
   }
 
-  function getStep(xPct, xSteps, snap, value) {
+  function getStep(xPct, xSteps, value) {
     if (value === 100) return value;
     const j = getJ(value, xPct);
-    const a = xPct[j - 1];
-    const b = xPct[j];
-    if (snap) {
-      if (value - a > (b - a) / 2) return b;
-      return a;
-    }
     if (!xSteps[j - 1]) return value;
     return xPct[j - 1] + closest(value - xPct[j - 1], xSteps[j - 1]);
   }
@@ -170,7 +148,6 @@ function sliderFactory() {
   function handleEntryPoint(index, value, that) {
     let percentage;
     if (typeof value === 'number') value = [value];
-    if (!Array.isArray(value)) throw new Error("'range' contains invalid value.");
     if (index === 'min') {
       percentage = 0;
     } else if (index === 'max') {
@@ -178,7 +155,6 @@ function sliderFactory() {
     } else {
       percentage = parseFloat(index);
     }
-    if (!isNumeric(percentage) || !isNumeric(value[0])) throw new Error("'range' value isn't numeric.");
     that.xPct.push(percentage);
     that.xVal.push(value[0]);
     if (!percentage) {
@@ -208,7 +184,6 @@ function sliderFactory() {
     this.xSteps = [singleStep || false];
     this.xNumSteps = [false];
     this.xHighestCompleteStep = [];
-    this.snap = snap;
     const ordered = [];
     let index;
     for (index in entry) {
@@ -229,8 +204,6 @@ function sliderFactory() {
   }
 
   Spectrum.prototype.getMargin = function(value) {
-    const step = this.xNumSteps[0];
-    if (step && (value / step) % 1 !== 0) throw new Error("'limit', 'margin' and 'padding' must be divisible by step.");
     return this.xPct.length === 2 ? fromPercentage(this.xVal, value) : false;
   };
 
@@ -244,7 +217,7 @@ function sliderFactory() {
   };
 
   Spectrum.prototype.getStep = function(value) {
-    value = getStep(this.xPct, this.xSteps, this.snap, value);
+    value = getStep(this.xPct, this.xSteps, value);
     return value;
   };
 
@@ -285,178 +258,68 @@ function sliderFactory() {
   };
 
   const defaultFormatter = {
-    to: function(value) {
-      return value !== undefined && value.toFixed(2);
-    },
+    to: value => value !== undefined && value.toFixed(2),
     from: Number,
   };
 
-  function validateFormat(entry) {
-    if (isValidFormatter(entry)) return true;
-    throw new Error("'format' requires 'to' and 'from' methods.");
-  }
-
-  function testStep(parsed, entry) {
-    if (!isNumeric(entry)) throw new Error("'step' is not numeric.");
-    parsed.singleStep = entry;
-  }
-
-  function testRange(parsed, entry) {
-    if (typeof entry !== 'object' || Array.isArray(entry)) throw new Error("'range' is not an object.");
-    if (entry.min === undefined || entry.max === undefined) throw new Error("Missing 'min' or 'max' in 'range'.");
-    if (entry.min === entry.max) throw new Error("'range' 'min' and 'max' cannot be equal.");
+  const testRange = (parsed, entry) => {
     parsed.spectrum = new Spectrum(entry, parsed.snap, parsed.singleStep);
-  }
-
-  function testStart(parsed, entry) {
+  };
+  const testStart = (parsed, entry) => {
     entry = asArray(entry);
-    if (!Array.isArray(entry) || !entry.length) throw new Error("'start' option is incorrect.");
     parsed.handles = entry.length;
     parsed.start = entry;
-  }
-
-  function testSnap(parsed, entry) {
-    parsed.snap = entry;
-    if (typeof entry !== 'boolean') throw new Error("'snap' option must be a boolean.");
-  }
-
-  function testAnimationDuration(parsed, entry) {
-    parsed.animationDuration = entry;
-    if (typeof entry !== 'number') throw new Error("'animationDuration' option must be a number.");
-  }
-
-  function testConnect(parsed, entry) {
-    let connect = [false];
-    let i;
-    if (entry === 'lower') {
-      entry = [true, false];
-    } else if (entry === 'upper') {
-      entry = [false, true];
-    }
-    if (entry === true || entry === false) {
-      for (i = 1; i < parsed.handles; i++) {
-        connect.push(entry);
-      }
-      connect.push(false);
-    } else if (!Array.isArray(entry) || !entry.length || entry.length !== parsed.handles + 1) {
-      throw new Error("'connect' option doesn't match handle count.");
-    } else {
-      connect = entry;
-    }
-    parsed.connect = connect;
-  }
-
-  function testOrientation(parsed, entry) {
-    switch (entry) {
-      case 'horizontal':
-        parsed.ort = 0;
-        break;
-      case 'vertical':
-        parsed.ort = 1;
-        break;
-      default:
-        throw new Error("'orientation' option is invalid.");
-    }
-  }
-
-  function testMargin(parsed, entry) {
-    if (!isNumeric(entry)) throw new Error("'margin' option must be numeric.");
-    if (entry === 0) return;
+  };
+  const testConnect = (parsed, entry) => {
+    parsed.connect = entry;
+  };
+  const testOrientation = parsed => {
+    parsed.ort = 0;
+  };
+  const testMargin = (parsed, entry) => {
     parsed.margin = parsed.spectrum.getMargin(entry);
-    if (!parsed.margin) throw new Error("'margin' option is only supported on linear sliders.");
-  }
-
-  function testLimit(parsed, entry) {
-    if (!isNumeric(entry)) throw new Error("'limit' option must be numeric.");
+  };
+  const testLimit = (parsed, entry) => {
     parsed.limit = parsed.spectrum.getMargin(entry);
-    if (!parsed.limit || parsed.handles < 2) throw new Error("'limit' option is only supported on linear sliders with 2 or more handles.");
-  }
-
-  function testDirection(parsed, entry) {
-    switch (entry) {
-      case 'ltr':
-        parsed.dir = 0;
-        break;
-      case 'rtl':
-        parsed.dir = 1;
-        break;
-      default:
-        throw new Error("'direction' option was not recognized.");
-    }
-  }
-
-  function testBehaviour(parsed, entry) {
-    if (typeof entry !== 'string') throw new Error("'behaviour' must be a string containing options.");
-    const tap = entry.indexOf('tap') >= 0;
-    const drag = entry.indexOf('drag') >= 0;
-    const fixed = entry.indexOf('fixed') >= 0;
-    const snap = entry.indexOf('snap') >= 0;
-    const hover = entry.indexOf('hover') >= 0;
-    const unconstrained = entry.indexOf('unconstrained') >= 0;
-    if (fixed) {
-      if (parsed.handles !== 2) throw new Error("'fixed' behaviour must be used with 2 handles");
-      testMargin(parsed, parsed.start[1] - parsed.start[0]);
-    }
-    if (unconstrained && (parsed.margin || parsed.limit)) throw new Error("'unconstrained' behaviour cannot be used with margin or limit");
-    parsed.events = {
-      tap: tap || snap,
-      drag: drag,
-      fixed: fixed,
-      snap: snap,
-      hover: hover,
-      unconstrained: unconstrained,
-    };
-  }
-
-  function testFormat(parsed, entry) {
+  };
+  const testDirection = parsed => {
+    parsed.dir = 0;
+  };
+  const testBehaviour = parsed => {
+    parsed.events = { drag: true };
+  };
+  const testFormat = (parsed, entry) => {
     parsed.format = entry;
-    validateFormat(entry);
-  }
-
-  function testDocumentElement(parsed, entry) {
-    parsed.documentElement = entry;
-  }
+  };
 
   function testCssPrefix(parsed, entry) {
     parsed.cssPrefix = entry;
   }
-
-  function testCssClasses(parsed, entry) {
-    if (typeof entry !== 'object') throw new Error("'cssClasses' must be an object.");
-    if (typeof parsed.cssPrefix === 'string') {
-      parsed.cssClasses = {};
-      for (let key in entry) {
-        if (!entry.hasOwnProperty(key)) continue;
-        parsed.cssClasses[key] = parsed.cssPrefix + entry[key];
-      }
-    } else {
-      parsed.cssClasses = entry;
+  const testCssClasses = (parsed, entry) => {
+    parsed.cssClasses = {};
+    for (let key in entry) {
+      if (!entry.hasOwnProperty(key)) continue;
+      parsed.cssClasses[key] = parsed.cssPrefix + entry[key];
     }
-  }
+  };
 
   function testOptions(options = {}) {
     const parsed = {
       margin: 0,
       limit: 0,
       padding: 0,
-      animationDuration: 300,
-      ariaFormat: defaultFormatter,
       format: defaultFormatter,
     };
     const tests = {
-      step: { r: false, t: testStep },
       start: { r: true, t: testStart },
       connect: { r: true, t: testConnect },
       direction: { r: true, t: testDirection },
-      snap: { r: false, t: testSnap },
-      animationDuration: { r: false, t: testAnimationDuration },
       range: { r: true, t: testRange },
       orientation: { r: false, t: testOrientation },
       margin: { r: false, t: testMargin },
       limit: { r: false, t: testLimit },
       behaviour: { r: true, t: testBehaviour },
       format: { r: false, t: testFormat },
-      documentElement: { r: false, t: testDocumentElement },
       cssPrefix: { r: true, t: testCssPrefix },
       cssClasses: { r: true, t: testCssClasses },
     };
@@ -478,7 +341,6 @@ function sliderFactory() {
         handleUpper: 'handle-upper',
         touchArea: 'touch-area',
         horizontal: 'horizontal',
-        vertical: 'vertical',
         background: 'background',
         connect: 'connect',
         connects: 'connects',
@@ -488,25 +350,8 @@ function sliderFactory() {
         drag: 'state-drag',
         tap: 'state-tap',
         active: 'active',
-        tooltip: 'tooltip',
-        pips: 'pips',
-        pipsHorizontal: 'pips-horizontal',
-        pipsVertical: 'pips-vertical',
-        marker: 'marker',
-        markerHorizontal: 'marker-horizontal',
-        markerVertical: 'marker-vertical',
-        markerNormal: 'marker-normal',
-        markerLarge: 'marker-large',
-        markerSub: 'marker-sub',
-        value: 'value',
-        valueHorizontal: 'value-horizontal',
-        valueVertical: 'value-vertical',
-        valueNormal: 'value-normal',
-        valueLarge: 'value-large',
-        valueSub: 'value-sub',
       },
     };
-    if (options.format && !options.ariaFormat) options.ariaFormat = options.format;
     Object.keys(tests).forEach(function(name) {
       if (!isSet(options[name]) && defaults[name] === undefined) {
         if (tests[name].r) throw new Error("'" + name + "' is required.");
@@ -514,7 +359,6 @@ function sliderFactory() {
       }
       tests[name].t(parsed, !isSet(options[name]) ? defaults[name] : options[name]);
     });
-    parsed.pips = options.pips;
     const d = document.createElement('div');
     const msPrefix = d.style.msTransform !== undefined;
     const noPrefix = d.style.transform !== undefined;
@@ -557,7 +401,7 @@ function sliderFactory() {
       addNodeTo(handle, options.cssClasses.touchArea);
       handle.setAttribute('data-handle', handleNumber);
       handle.setAttribute('role', 'slider');
-      handle.setAttribute('aria-orientation', options.ort ? 'vertical' : 'horizontal');
+      handle.setAttribute('aria-orientation', 'horizontal');
       if (handleNumber === 0) {
         addClass(handle, options.cssClasses.handleLower);
       } else if (handleNumber === options.handles - 1) {
@@ -585,16 +429,8 @@ function sliderFactory() {
 
     function addSlider(addTarget) {
       addClass(addTarget, options.cssClasses.target);
-      if (options.dir === 0) {
-        addClass(addTarget, options.cssClasses.ltr);
-      } else {
-        addClass(addTarget, options.cssClasses.rtl);
-      }
-      if (options.ort === 0) {
-        addClass(addTarget, options.cssClasses.horizontal);
-      } else {
-        addClass(addTarget, options.cssClasses.vertical);
-      }
+      addClass(addTarget, options.cssClasses.ltr);
+      addClass(addTarget, options.cssClasses.horizontal);
       return addNodeTo(addTarget, options.cssClasses.base);
     }
 
@@ -605,8 +441,8 @@ function sliderFactory() {
 
     function baseSize() {
       const rect = scope_Base.getBoundingClientRect();
-      const alt = 'offset' + ['Width', 'Height'][options.ort];
-      return options.ort === 0 ? rect.width || scope_Base[alt] : rect.height || scope_Base[alt];
+      const alt = 'offsetWidth';
+      return rect.width || scope_Base[alt];
     }
 
     function attachEvent(events, element, callback, data) {
@@ -670,7 +506,7 @@ function sliderFactory() {
       if (navigator.appVersion.indexOf('MSIE 9') === -1 && event.buttons === 0 && data.buttonsProperty !== 0) {
         return eventEnd(event, data);
       }
-      const movement = (options.dir ? -1 : 1) * (event.calcPoint - data.startCalcPoint);
+      const movement = event.calcPoint - data.startCalcPoint;
       const proposal = (movement * 100) / data.baseSize;
       moveHandles(movement > 0, proposal, data.locations, data.handleNumbers);
     }
@@ -690,7 +526,7 @@ function sliderFactory() {
         setZindex();
         if (event.cursor) {
           scope_Body.style.cursor = '';
-          scope_Body.removeEventListener('selectstart', preventDefault);
+          scope_Body.removeEventListener('selectstart', e => e.preventDefault());
         }
       }
 
@@ -743,7 +579,7 @@ function sliderFactory() {
       if (event.cursor) {
         scope_Body.style.cursor = getComputedStyle(event.target).cursor;
         if (scope_Handles.length > 1) addClass(scope_Target, options.cssClasses.drag);
-        scope_Body.addEventListener('selectstart', preventDefault, false);
+        scope_Body.addEventListener('selectstart', e => e.preventDefault(), false);
       }
 
       data.handleNumbers.forEach(function(handleNumber) {
@@ -751,34 +587,26 @@ function sliderFactory() {
       });
     }
 
-    function bindSliderEvents(behaviour) {
-      if (!behaviour.fixed) {
-        scope_Handles.forEach(function(handle, index) {
-          attachEvent(actions.start, handle.children[0], eventStart, {
-            handleNumbers: [index],
-          });
+    function bindSliderEvents() {
+      scope_Handles.forEach(function(handle, index) {
+        attachEvent(actions.start, handle.children[0], eventStart, {
+          handleNumbers: [index],
         });
-      }
+      });
 
-      if (behaviour.drag) {
-        scope_Connects.forEach(function(connect, index) {
-          if (connect === false || index === 0 || index === scope_Connects.length - 1) return;
-          const handleBefore = scope_Handles[index - 1];
-          const handleAfter = scope_Handles[index];
-          const eventHolders = [connect];
-          addClass(connect, options.cssClasses.draggable);
-          if (behaviour.fixed) {
-            eventHolders.push(handleBefore.children[0]);
-            eventHolders.push(handleAfter.children[0]);
-          }
-          eventHolders.forEach(function(eventHolder) {
-            attachEvent(actions.start, eventHolder, eventStart, {
-              handles: [handleBefore, handleAfter],
-              handleNumbers: [index - 1, index],
-            });
+      scope_Connects.forEach(function(connect, index) {
+        if (connect === false || index === 0 || index === scope_Connects.length - 1) return;
+        const handleBefore = scope_Handles[index - 1];
+        const handleAfter = scope_Handles[index];
+        const eventHolders = [connect];
+        addClass(connect, options.cssClasses.draggable);
+        eventHolders.forEach(function(eventHolder) {
+          attachEvent(actions.start, eventHolder, eventStart, {
+            handles: [handleBefore, handleAfter],
+            handleNumbers: [index - 1, index],
           });
         });
-      }
+      });
     }
 
     function bindEvent(namespacedEvent, callback) {
@@ -880,14 +708,10 @@ function sliderFactory() {
       }
     }
 
-    function transformDirection(a, b) {
-      return options.dir ? 100 - a - b : a;
-    }
-
     function updateHandlePosition(handleNumber, to) {
       scope_Locations[handleNumber] = to;
       scope_Values[handleNumber] = scope_Spectrum.fromStepping(to);
-      const rule = 'translate(' + inRuleOrder(transformDirection(to, 0) - scope_DirOffset + '%', '0') + ')';
+      const rule = 'translate(' + inRuleOrder(to - scope_DirOffset + '%', '0') + ')';
       scope_Handles[handleNumber].style[options.transformRule] = rule;
       updateConnect(handleNumber);
       updateConnect(handleNumber + 1);
@@ -915,7 +739,7 @@ function sliderFactory() {
       if (index !== 0) l = scope_Locations[index - 1];
       if (index !== scope_Connects.length - 1) h = scope_Locations[index];
       const connectWidth = h - l;
-      const translateRule = 'translate(' + inRuleOrder(transformDirection(l, connectWidth) + '%', '0') + ')';
+      const translateRule = 'translate(' + inRuleOrder(l + '%', '0') + ')';
       const scaleRule = 'scale(' + inRuleOrder(connectWidth / 100, '1') + ')';
       scope_Connects[index].style[options.transformRule] = translateRule + ' ' + scaleRule;
     }
@@ -947,10 +771,6 @@ function sliderFactory() {
       });
     }
 
-    function valueReset(fireSetEvent) {
-      valueSet(options.start, fireSetEvent);
-    }
-
     function valueSetHandle(handleNumber, value, fireSetEvent) {
       const values = [];
       handleNumber = Number(handleNumber);
@@ -970,39 +790,6 @@ function sliderFactory() {
       return values;
     }
 
-    function destroy() {
-      for (let key in options.cssClasses) {
-        if (!options.cssClasses.hasOwnProperty(key)) continue;
-        removeClass(scope_Target, options.cssClasses[key]);
-      }
-      while (scope_Target.firstChild) {
-        scope_Target.removeChild(scope_Target.firstChild);
-      }
-      delete scope_Target.sliderApi;
-    }
-
-    function updateOptions(optionsToUpdate, fireSetEvent) {
-      const v = valueGet();
-      const updateAble = ['margin', 'limit', 'padding', 'range', 'snap', 'step', 'format'];
-      updateAble.forEach(function(name) {
-        if (optionsToUpdate[name] !== undefined) {
-          originalOptions[name] = optionsToUpdate[name];
-        }
-      });
-      const newOptions = testOptions(originalOptions);
-      updateAble.forEach(function(name) {
-        if (optionsToUpdate[name] !== undefined) {
-          options[name] = newOptions[name];
-        }
-      });
-      scope_Spectrum = newOptions.spectrum;
-      options.margin = newOptions.margin;
-      options.limit = newOptions.limit;
-      options.padding = newOptions.padding;
-      scope_Locations = [];
-      valueSet(optionsToUpdate.start || v, fireSetEvent);
-    }
-
     function setupSlider() {
       scope_Base = addSlider(scope_Target);
       addElements(options.connect, scope_Base);
@@ -1013,26 +800,18 @@ function sliderFactory() {
     setupSlider();
 
     scope_Self = {
-      destroy: destroy,
       on: bindEvent,
       off: removeEvent,
       get: valueGet,
       set: valueSet,
       setHandle: valueSetHandle,
-      reset: valueReset,
-      __moveHandles: function(a, b, c) {
-        moveHandles(a, b, scope_Locations, c);
-      },
       options: originalOptions,
-      updateOptions: updateOptions,
       target: scope_Target,
     };
     return scope_Self;
   }
 
   function initialize(target, originalOptions) {
-    if (!target || !target.nodeName) throw new Error('create requires a single element, got: ' + target);
-    if (target.sliderApi) throw new Error('Slider was already initialized.');
     const options = testOptions(originalOptions, target);
     const api = scope(target, options, originalOptions);
     target.sliderApi = api;

@@ -24,13 +24,11 @@ exports.createElement = (tag, { className, text, attributes }) => {
   return element;
 };
 
-const clearNodeChildren = $node => {
+exports.clearNodeChildren = $node => {
   while ($node.firstChild) $node.removeChild($node.firstChild);
 };
 
-exports.clearNodeChildren = clearNodeChildren;
-
-const omitProps = (object, propNames) => {
+exports.omitProps = (object, propNames) => {
   return Object.keys(object).reduce((acc, key) => {
     if (propNames.includes(key)) return acc;
     acc[key] = object[key];
@@ -38,11 +36,7 @@ const omitProps = (object, propNames) => {
   }, {});
 };
 
-exports.omitProps = omitProps;
-
-exports.concatArrays = arrays => arrays.reduce((acc, arr) => acc.concat(arr), []);
-
-const getDateText = (date, { showDay } = {}) => {
+exports.getDateText = (date, { showDay } = {}) => {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const label = `${months[date.getMonth()]} ${date.getDate()}`;
   if (showDay) {
@@ -52,33 +46,35 @@ const getDateText = (date, { showDay } = {}) => {
   return label;
 };
 
-exports.getDateText = getDateText;
-
-const getDataValueCoords = ({ chartSize, stepX, stepY }, { bottomOffset = 0 } = {}) => (num = 0, index = 0) => {
+exports.getDataValueCoords = ({ chartSize, stepX, stepY }, { scrollOffset = 0, bottomOffset = 0 } = {}) => (num = 0, index = 0) => {
   return {
-    x: index * stepX,
+    x: -scrollOffset + index * stepX,
     y: chartSize.height - bottomOffset * chartSize.ratio - num * stepY,
   };
 };
 
-exports.getDataValueCoords = getDataValueCoords;
-
-exports.getTooltipPoint = ({ chartSize, chartData, chartClick, stepX, stepY }, { bottomOffset } = {}) => {
-  const percentage = (chartClick.x * chartSize.ratio) / chartSize.width;
-  const targetIndex = Math.round(Math.max(chartData.x.data.length - 1, 1) * percentage);
-  const date = new Date(chartData.x.data[targetIndex]);
+exports.getTooltipPoint = ({ chartSize, chartData, chartClick, stepX, stepY }, { scrollOffset, bottomOffset } = {}) => {
+  const totalLength = chartData.columns.x.data.length - 1;
+  const totalWidth = totalLength * stepX;
+  const percentage = (scrollOffset + chartClick.x * chartSize.ratio) / totalWidth;
+  const targetIndex = Math.round(totalLength * percentage);
+  const date = new Date(chartData.columns.x.data[targetIndex]);
+  const yColumns = exports.omitProps(chartData.columns, ['x']);
   const pointData = {
     targetIndex,
     date,
-    label: getDateText(date, { showDay: true }),
-    data: Object.values(omitProps(chartData, ['x', 'slider']))
+    label: exports.getDateText(date, { showDay: true }),
+    data: Object.values(yColumns)
       .reverse()
       .reduce((acc, column) => {
         acc[column.id] = {
           name: column.name,
           value: column.data[targetIndex],
           color: column.color,
-          coords: getDataValueCoords({ chartSize, stepX, stepY }, { bottomOffset })(column.data[targetIndex], targetIndex),
+          coords: exports.getDataValueCoords({ chartSize, chartData, stepX, stepY }, { scrollOffset, bottomOffset })(
+            column.data[targetIndex],
+            targetIndex,
+          ),
         };
         return acc;
       }, {}),
@@ -87,6 +83,6 @@ exports.getTooltipPoint = ({ chartSize, chartData, chartClick, stepX, stepY }, {
 };
 
 exports.updateThemeButton = ($themeButton, nightMode) => {
-  clearNodeChildren($themeButton);
+  exports.clearNodeChildren($themeButton);
   $themeButton.appendChild(document.createTextNode(nightMode ? 'Switch to Day Mode' : 'Switch to Night Mode'));
 };

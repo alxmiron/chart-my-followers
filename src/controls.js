@@ -2,7 +2,7 @@ const Observable = require('./observable');
 const { omitProps, clearNodeChildren, createElement } = require('./utils');
 
 const renderColumnControls = ($columnSwitches, sourceData) => {
-  const yColumns = omitProps(sourceData, ['x', 'slider']);
+  const yColumns = omitProps(sourceData.columns, ['x']);
   clearNodeChildren($columnSwitches); // remove current switches
   Object.values(yColumns).forEach(column => {
     const label = createElement('label', { className: 'switch-button' });

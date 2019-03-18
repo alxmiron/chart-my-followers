@@ -34,11 +34,12 @@ class Observable {
     this.subscribe(data => child$.broadcast(fn(data, this.lastValue)));
     return child$;
   }
-  filter(fn) {
+  filter(fn, { inheritLastValue }) {
     const child$ = new Observable();
     this.subscribe(data => {
       if (fn(data, this.lastValue)) child$.broadcast(data);
     });
+    if (inheritLastValue && fn(this.lastValue)) child$.lastValue = this.lastValue;
     return child$;
   }
   repeatLast() {

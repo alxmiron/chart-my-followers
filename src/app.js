@@ -63,28 +63,20 @@ const bootstrap = () => {
   // Chart data (filtered by columns checkboxes)
   const chartData$ = sourceData$
     .merge([columnSwitches$])
-    .map(({ columnSwitches, sourceData }) => omitProps(sourceData, Object.keys(columnSwitches).filter(colId => !columnSwitches[colId])))
+    .map(({ columnSwitches, sourceData }) => ({
+      ...sourceData,
+      columns: omitProps(sourceData.columns, Object.keys(columnSwitches).filter(colId => !columnSwitches[colId])),
+    }))
     .withName('chartData');
 
   // Global window size
   const windowSize$ = new Observable()
     .fromEvent(window, 'resize')
-    .map(event => ({
-      width: event.target.innerWidth,
-      height: event.target.innerHeight,
-      paddings: 20,
-    }))
+    .map(event => ({ width: event.target.innerWidth, height: event.target.innerHeight, paddings: 20 }))
     .withInitialEvent({ width: window.innerWidth, height: window.innerHeight, paddings: 20 });
 
   // Navigation slider
-  const slider$ = getSliderObservable()
-    .map(
-      slider => {
-        return { left: parseInt(slider[0]) / 1000, right: parseInt(slider[1]) / 1000 };
-      },
-      { inheritLastValue: true },
-    )
-    .withName('slider');
+  const slider$ = getSliderObservable();
 
   const withBigCanvas = fn => fn(bigCanvas, bigCtx);
   const withNavCanvas = fn => fn(navCanvas, navCtx);
@@ -96,16 +88,8 @@ const bootstrap = () => {
     const bigChartData$ = chartData$
       .merge([slider$])
       .map(({ chartData, slider }) => {
-        const { left, right } = slider;
-        return Object.values(omitProps(chartData, ['slider'])).reduce((acc, column) => {
-          const leftIndex = Math.floor(column.data.length * left);
-          const rightIndex = Math.ceil(column.data.length * right);
-          const fixedRightIndex = rightIndex - leftIndex < 2 ? leftIndex + 2 : rightIndex;
-          const normalLeftIndex = Math.min(leftIndex, column.data.length - 2);
-          const normalRightIndex = Math.max(fixedRightIndex, 2);
-          acc[column.id] = { ...column, data: column.data.slice(normalLeftIndex, normalRightIndex) };
-          return acc;
-        }, {});
+        const result = { ...chartData, slider };
+        return result;
       })
       .withName('chartData');
 
