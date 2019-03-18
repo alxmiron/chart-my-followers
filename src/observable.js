@@ -20,12 +20,6 @@ class Observable {
     this.observers.push(fn);
     return this;
   }
-  // unsubscribe(fn) {
-  //   this.observers = this.observers.filter(subscriber => subscriber !== fn);
-  // }
-  // clearSubscriptions() {
-  //   this.observers = [];
-  // }
   fromEvent(node, eventType) {
     node.addEventListener(eventType, event => this.broadcast(event));
     return this;
@@ -37,7 +31,14 @@ class Observable {
   map(fn, { inheritLastValue } = {}) {
     const child$ = new Observable();
     if (inheritLastValue) child$.lastValue = fn(this.lastValue);
-    this.subscribe(data => child$.broadcast(fn(data)));
+    this.subscribe(data => child$.broadcast(fn(data, this.lastValue)));
+    return child$;
+  }
+  filter(fn) {
+    const child$ = new Observable();
+    this.subscribe(data => {
+      if (fn(data, this.lastValue)) child$.broadcast(data);
+    });
     return child$;
   }
   repeatLast() {
@@ -68,13 +69,6 @@ class Observable {
             }, {}),
         }),
       );
-    });
-    return child$;
-  }
-  filter(fn) {
-    const child$ = new Observable();
-    this.subscribe(data => {
-      if (fn(data, this.lastValue)) child$.broadcast(data);
     });
     return child$;
   }

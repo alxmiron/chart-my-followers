@@ -3,9 +3,7 @@ const Observable = require('./observable');
 module.exports = function getSliderObservable() {
   const rangeSlider = sliderFactory();
   const sliderNode = document.getElementById('navigation-handler');
-
-  rangeSlider.create(sliderNode, { start: [60, 85], margin: 10 });
-
+  rangeSlider.create(sliderNode);
   const slider$ = new Observable('slider');
   sliderNode.sliderApi.on('update', data => slider$.broadcast(data));
   return slider$;
@@ -436,7 +434,7 @@ function sliderFactory() {
     }
   }
 
-  function testOptions(options) {
+  function testOptions(options = {}) {
     const parsed = {
       margin: 0,
       limit: 0,
@@ -468,7 +466,9 @@ function sliderFactory() {
       behaviour: 'drag',
       orientation: 'horizontal',
       cssPrefix: 'slider-',
-      range: { min: 0, max: 100 },
+      margin: 100,
+      range: { min: 0, max: 1000 },
+      start: [600, 850],
       cssClasses: {
         target: 'target',
         base: 'base',

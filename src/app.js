@@ -77,7 +77,14 @@ const bootstrap = () => {
     .withInitialEvent({ width: window.innerWidth, height: window.innerHeight, paddings: 20 });
 
   // Navigation slider
-  const slider$ = getSliderObservable().withName('slider');
+  const slider$ = getSliderObservable()
+    .map(
+      slider => {
+        return { left: parseInt(slider[0]) / 1000, right: parseInt(slider[1]) / 1000 };
+      },
+      { inheritLastValue: true },
+    )
+    .withName('slider');
 
   const withBigCanvas = fn => fn(bigCanvas, bigCtx);
   const withNavCanvas = fn => fn(navCanvas, navCtx);
@@ -89,9 +96,8 @@ const bootstrap = () => {
     const bigChartData$ = chartData$
       .merge([slider$])
       .map(({ chartData, slider }) => {
-        const left = parseFloat(slider[0]) / 100;
-        const right = parseFloat(slider[1]) / 100;
-        return Object.values(chartData).reduce((acc, column) => {
+        const { left, right } = slider;
+        return Object.values(omitProps(chartData, ['slider'])).reduce((acc, column) => {
           const leftIndex = Math.floor(column.data.length * left);
           const rightIndex = Math.ceil(column.data.length * right);
           const fixedRightIndex = rightIndex - leftIndex < 2 ? leftIndex + 2 : rightIndex;

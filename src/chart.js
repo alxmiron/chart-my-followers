@@ -1,4 +1,3 @@
-// const { debug } = require('./debug');
 const { getDataValueCoords, getTooltipPoint, omitProps, concatArrays, getDateText } = require('./utils');
 const { createElement, clearNodeChildren } = require('./utils');
 
@@ -28,7 +27,7 @@ const formatGridValue = value => {
 };
 
 const getChartSteps = ({ chartSize, chartData }, { topOffsetPercent = 0, bottomOffset = 0 } = {}) => {
-  const dataColumns = omitProps(chartData, ['x']);
+  const dataColumns = omitProps(chartData, ['x', 'slider']);
   const maxDataLength = Math.max(Math.max(...Object.values(dataColumns).map(col => col.data.length)) - 1, 0);
   const maxDataValue = Math.max(Math.max(...concatArrays(Object.values(dataColumns).map(col => col.data))), 0);
   const stepX = chartSize.width / Math.max(maxDataLength, 1);
@@ -174,7 +173,7 @@ const renderTooltip = (canvas, ctx, $tooltipContainer) => (
 
 exports.renderChart = (canvas, ctx, $tooltipContainer) => ({ chartSize, chartData, chartClick, darkTheme }, options = {}) => {
   const { withGrid, withTimeline, withTooltip, lineWidth = 1, topOffsetPercent, bottomOffset = 0 } = options;
-  const yColumns = omitProps(chartData, ['x']);
+  const yColumns = omitProps(chartData, ['x', 'slider']);
   const { stepX, stepY, maxDataValue } = getChartSteps({ chartSize, chartData }, { topOffsetPercent, bottomOffset });
   clearChart(canvas, ctx)();
   clearNodeChildren($tooltipContainer);

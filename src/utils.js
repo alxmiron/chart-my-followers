@@ -71,7 +71,7 @@ exports.getTooltipPoint = ({ chartSize, chartData, chartClick, stepX, stepY }, {
     targetIndex,
     date,
     label: getDateText(date, { showDay: true }),
-    data: Object.values(omitProps(chartData, ['x']))
+    data: Object.values(omitProps(chartData, ['x', 'slider']))
       .reverse()
       .reduce((acc, column) => {
         acc[column.id] = {
