@@ -125,7 +125,7 @@ const bootstrap = () => {
   });
 
   // Load dataset from server
-  fetch('assets/chart_data.min.json')
+  fetch('chart_data.min.json')
     .then(response => response.json())
     .then(dataset => formatChartData(dataset))
     .then(dataset => renderDataSelect($dataSelect, dataset))
