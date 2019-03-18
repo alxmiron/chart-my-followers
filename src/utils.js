@@ -24,9 +24,11 @@ exports.createElement = (tag, { className, text, attributes }) => {
   return element;
 };
 
-exports.clearNodeChildren = $node => {
+const clearNodeChildren = $node => {
   while ($node.firstChild) $node.removeChild($node.firstChild);
 };
+
+exports.clearNodeChildren = clearNodeChildren;
 
 const omitProps = (object, propNames) => {
   return Object.keys(object).reduce((acc, key) => {
@@ -82,4 +84,9 @@ exports.getTooltipPoint = ({ chartSize, chartData, chartClick, stepX, stepY }, {
       }, {}),
   };
   return pointData;
+};
+
+exports.updateThemeButton = ($themeButton, nightMode) => {
+  clearNodeChildren($themeButton);
+  $themeButton.appendChild(document.createTextNode(nightMode ? 'Switch to Day Mode' : 'Switch to Night Mode'));
 };

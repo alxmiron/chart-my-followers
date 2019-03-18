@@ -3,7 +3,7 @@ const Observable = require('./observable');
 const { getChartSizeObservable, renderChart } = require('./chart');
 const { renderDataSelect, getSwitchesObservable, renderColumnControls, updateSwitchesSubscriptions } = require('./controls');
 const { formatChartData } = require('./data');
-const { getDeviceRatio, omitProps } = require('./utils');
+const { getDeviceRatio, omitProps, updateThemeButton } = require('./utils');
 const { debug, debugDir } = require('./debug');
 
 const bootstrap = () => {
@@ -17,9 +17,25 @@ const bootstrap = () => {
   navCtx.scale(ratio, ratio);
   bigCtx.scale(ratio, ratio);
 
+  const rootNode = document.getElementById('root');
   const $dataSelect = document.getElementById('dataset-select');
   const $columnSwitches = document.getElementById('column-switches');
   const $tooltipContainer = document.getElementById('tooltip-container');
+  const $themeButton = document.getElementById('theme-button');
+
+  const darkTheme$ = new Observable('darkTheme')
+    .fromEvent($themeButton, 'click')
+    .withInitialEvent(false)
+    .map(() => !darkTheme$.lastValue)
+    .withName('darkTheme')
+    .subscribe(value => {
+      if (value) {
+        rootNode.classList.add('dark');
+      } else {
+        rootNode.classList.remove('dark');
+      }
+      updateThemeButton($themeButton, value);
+    });
 
   const dataSelect$ = new Observable('dataSelect')
     .fromEvent($dataSelect, 'change')
@@ -67,7 +83,7 @@ const bootstrap = () => {
   const withNavCanvas = fn => fn(navCanvas, navCtx);
 
   withBigCanvas((canvas, ctx) => {
-    const chartHeight = windowSize => windowSize.height - 10 - 15 - 34 - 65 - 60;
+    const chartHeight = windowSize => Math.min(windowSize.height - /* paddings */ 10 - /* title */ 15 - 34 - /* nav */ 65 - /* controls */ 100, 600);
     const chartSize$ = getChartSizeObservable(windowSize$, canvas, { height: chartHeight, ratio }).withName('chartSize');
 
     const bigChartData$ = chartData$
@@ -93,9 +109,9 @@ const bootstrap = () => {
       .withOption('saveLastValue', false)
       .withName('chartClick');
 
-    bigChartData$.merge([chartSize$, chartClick$]).subscribe(({ chartSize, chartData, chartClick }) => {
+    bigChartData$.merge([chartSize$, chartClick$, darkTheme$]).subscribe(({ chartSize, chartData, chartClick, darkTheme }) => {
       const options = { withGrid: true, withTimeline: true, withTooltip: true, lineWidth: 1.4, topOffsetPercent: 0.2, bottomOffset: 20 };
-      renderChart(canvas, ctx, $tooltipContainer)({ chartSize, chartData, chartClick }, options);
+      renderChart(canvas, ctx, $tooltipContainer)({ chartSize, chartData, chartClick, darkTheme }, options);
     });
   });
 
@@ -103,7 +119,7 @@ const bootstrap = () => {
     const chartSize$ = getChartSizeObservable(windowSize$, canvas, { height: 60, ratio }).withName('chartSize');
 
     chartData$.merge([chartSize$]).subscribe(({ chartSize, chartData }) => {
-      const options = { withFrame: true, topOffsetPercent: 0.1 };
+      const options = { topOffsetPercent: 0.1 };
       renderChart(canvas, ctx, $tooltipContainer)({ chartSize, chartData }, options);
     });
   });

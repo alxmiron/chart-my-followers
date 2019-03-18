@@ -11,10 +11,10 @@ const renderLine = (canvas, ctx) => (x0, y0, x1, y1, { color = '#eaeaea', lineWi
   ctx.stroke();
 };
 
-const renderCircle = (canvas, ctx) => (x, y, radius, { color = 'black', lineWidth = 1, ratio = 1 } = {}) => {
+const renderCircle = (canvas, ctx) => (x, y, radius, { color = 'black', lineWidth = 1, ratio = 1, darkTheme } = {}) => {
   ctx.strokeStyle = color;
   ctx.lineWidth = lineWidth * ratio;
-  ctx.fillStyle = 'white';
+  ctx.fillStyle = darkTheme ? '#242f3e' : 'white';
   ctx.beginPath();
   ctx.arc(x, y, radius * ratio, 0, Math.PI * 2, true);
   ctx.stroke();
@@ -36,12 +36,6 @@ const getChartSteps = ({ chartSize, chartData }, { topOffsetPercent = 0, bottomO
   return { stepX, stepY, maxDataValue, maxDataLength };
 };
 
-const renderFrame = (canvas, ctx) => ({ chartSize }) => {
-  const color = '#d6d5d4';
-  renderLine(canvas, ctx)(0, 0, chartSize.width, 0, { color, ratio: chartSize.ratio });
-  renderLine(canvas, ctx)(0, chartSize.height, chartSize.width, chartSize.height, { color, ratio: chartSize.ratio });
-};
-
 const renderLineChart = (canvas, ctx) => ({ columnData, chartSize, stepX, stepY }, { lineWidth = 1, bottomOffset = 0 } = {}) => {
   ctx.strokeStyle = columnData.color.toUpperCase();
   ctx.lineWidth = lineWidth * chartSize.ratio;
@@ -53,9 +47,9 @@ const renderLineChart = (canvas, ctx) => ({ columnData, chartSize, stepX, stepY 
   ctx.stroke();
 };
 
-const renderTimeline = (canvas, ctx) => ({ chartSize, chartData }, { bottomOffset = 4 } = {}) => {
+const renderTimeline = (canvas, ctx) => ({ chartSize, chartData, darkTheme }, { bottomOffset = 4 } = {}) => {
   ctx.font = `lighter ${12 * chartSize.ratio}px sans-serif`;
-  ctx.fillStyle = '#a5a5a5';
+  ctx.fillStyle = darkTheme ? '#546778' : '#a5a5a5';
   const labelWidth = 100 * chartSize.ratio;
   const bestLabelsAmount = Math.floor(chartSize.width / labelWidth);
   const leaveEach = Math.ceil(chartData.x.data.length / bestLabelsAmount);
@@ -94,16 +88,16 @@ const getGridRows = ({ chartSize, maxDataValue }, { topOffsetPercent = 0, bottom
   return gridRows;
 };
 
-const renderGrid = (canvas, ctx) => (gridRows, chartSize) => {
+const renderGrid = (canvas, ctx) => ({ chartSize, darkTheme }, gridRows) => {
   gridRows.forEach(row => {
-    renderLine(canvas, ctx)(0, row.level, chartSize.width, row.level, { ratio: chartSize.ratio });
+    renderLine(canvas, ctx)(0, row.level, chartSize.width, row.level, { ratio: chartSize.ratio, color: darkTheme ? '#313d4d' : '#eaeaea' });
   });
 };
 
-const renderGridValues = (canvas, ctx) => (gridRows, chartSize) => {
+const renderGridValues = (canvas, ctx) => ({ chartSize, darkTheme }, gridRows) => {
   gridRows.forEach(row => {
     ctx.font = `lighter ${12 * chartSize.ratio}px sans-serif`;
-    ctx.fillStyle = '#a5a5a5';
+    ctx.fillStyle = darkTheme ? '#546778' : '#a5a5a5';
     ctx.fillText(row.label, 0, row.level - 5 * chartSize.ratio);
   });
 };
@@ -152,7 +146,10 @@ const getTooltipPosition = ({ chartSize, point, tooltipClientWidth, topOffset })
   return { left, top: topOffset };
 };
 
-const renderTooltip = (canvas, ctx, $tooltipContainer) => ({ chartSize, chartData, chartClick, stepX, stepY }, { bottomOffset = 0 } = {}) => {
+const renderTooltip = (canvas, ctx, $tooltipContainer) => (
+  { chartSize, chartData, darkTheme, chartClick, stepX, stepY },
+  { bottomOffset = 0 } = {},
+) => {
   const pointData = getTooltipPoint({ chartSize, chartData, chartClick, stepX, stepY }, { bottomOffset });
   const points = Object.values(pointData.data);
   if (!points.length) return;
@@ -160,9 +157,10 @@ const renderTooltip = (canvas, ctx, $tooltipContainer) => ({ chartSize, chartDat
   const point = points[0];
   renderLine(canvas, ctx)(point.coords.x, topOffset * chartSize.ratio, point.coords.x, chartSize.height - bottomOffset * chartSize.ratio, {
     ratio: chartSize.ratio,
+    color: darkTheme ? '#3b4a5a' : '#eaeaea',
   });
   Object.values(pointData.data).forEach(column => {
-    renderCircle(canvas, ctx)(column.coords.x, column.coords.y, 4, { color: column.color, lineWidth: 3, ratio: chartSize.ratio });
+    renderCircle(canvas, ctx)(column.coords.x, column.coords.y, 4, { color: column.color, lineWidth: 3, ratio: chartSize.ratio, darkTheme });
   });
   clearNodeChildren($tooltipContainer);
   const $tooltip = getTooltipNode(pointData);
@@ -174,21 +172,22 @@ const renderTooltip = (canvas, ctx, $tooltipContainer) => ({ chartSize, chartDat
   $tooltip.style.visibility = 'visible';
 };
 
-exports.renderChart = (canvas, ctx, $tooltipContainer) => ({ chartSize, chartData, chartClick }, options = {}) => {
-  const { withGrid, withTimeline, withTooltip, withFrame, lineWidth = 1, topOffsetPercent, bottomOffset = 0 } = options;
+exports.renderChart = (canvas, ctx, $tooltipContainer) => ({ chartSize, chartData, chartClick, darkTheme }, options = {}) => {
+  const { withGrid, withTimeline, withTooltip, lineWidth = 1, topOffsetPercent, bottomOffset = 0 } = options;
   const yColumns = omitProps(chartData, ['x']);
   const { stepX, stepY, maxDataValue } = getChartSteps({ chartSize, chartData }, { topOffsetPercent, bottomOffset });
   clearChart(canvas, ctx)();
   clearNodeChildren($tooltipContainer);
   const gridRows = withGrid ? getGridRows({ chartSize, chartData, stepX, stepY, maxDataValue }, { topOffsetPercent, bottomOffset }) : [];
-  if (gridRows.length) renderGrid(canvas, ctx)(gridRows, chartSize);
+  if (gridRows.length) renderGrid(canvas, ctx)({ chartSize, darkTheme }, gridRows);
   Object.values(yColumns).forEach(columnData => {
     renderLineChart(canvas, ctx)({ chartSize, columnData, stepX, stepY }, { lineWidth, bottomOffset });
   });
-  if (withFrame) renderFrame(canvas, ctx)({ chartSize });
-  if (gridRows.length) renderGridValues(canvas, ctx)(gridRows, chartSize);
-  if (withTimeline) renderTimeline(canvas, ctx)({ chartSize, chartData });
-  if (withTooltip && chartClick) renderTooltip(canvas, ctx, $tooltipContainer)({ chartSize, chartData, chartClick, stepX, stepY }, { bottomOffset });
+  if (gridRows.length) renderGridValues(canvas, ctx)({ chartSize, darkTheme }, gridRows);
+  if (withTimeline) renderTimeline(canvas, ctx)({ chartSize, chartData, darkTheme });
+  if (withTooltip && chartClick) {
+    renderTooltip(canvas, ctx, $tooltipContainer)({ chartSize, chartData, darkTheme, chartClick, stepX, stepY }, { bottomOffset });
+  }
 };
 
 exports.getChartSizeObservable = (windowSize$, canvas, { ratio, height }) => {

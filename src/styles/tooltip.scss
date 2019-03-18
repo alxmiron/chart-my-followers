@@ -8,8 +8,14 @@
   border: 1px solid $grey1;
   border-radius: 8px;
   padding: 8px 10px;
-  background: white;
   box-shadow: rgba($grey1, 0.5) 0px 2px 2px 0px;
+  background: white;
+
+  .dark & {
+    background: $darkBlue1;
+    border: none;
+    box-shadow: rgba(black, 0.5) 0px 2px 2px 0px;
+  }
 
   time {
     font-size: 14px;

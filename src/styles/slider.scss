@@ -44,10 +44,23 @@ $slider-height: 60px;
   transform-origin: 0 0;
   transform-style: flat;
 }
-.slider-connect:nth-child(odd) {
-  background: rgba(181, 181, 181, 0.3);
-  border-top: 1px solid rgba($grey0, 1);
-  border-bottom: 1px solid rgba($grey0, 1);
+.slider-connect {
+  &:nth-child(odd) {
+    background: rgba(181, 181, 181, 0.3);
+
+    .dark & {
+      background: rgba(24, 29, 45, 0.5);
+    }
+  }
+
+  &:nth-child(even) {
+    border-top: 1px solid $grey1;
+    border-bottom: 1px solid $grey1;
+
+    .dark & {
+      border-color: $darkBlue3;
+    }
+  }
 }
 .slider-origin {
   left: auto;
@@ -70,9 +83,13 @@ $slider-height: 60px;
     position: absolute;
     height: $slider-height;
     width: 4px;
-    background: $grey1;
     left: 16px;
     top: 6px;
+    background: $grey1;
+
+    .dark & {
+      background: $darkBlue3;
+    }
   }
 
   &.slider-handle-lower {
