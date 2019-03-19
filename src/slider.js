@@ -9,9 +9,11 @@ module.exports = function getSliderObservable() {
   const detectedSlider$ = slider$
     .filter((values, prevValues) => !(prevValues && prevValues.join('-') === values.join('-')), { inheritLastValue: true })
     .map(
-      values => ({
+      (values, prevValues) => ({
         left: parseInt(values[0]) / 1000,
         right: parseInt(values[1]) / 1000,
+        leftDrag: prevValues ? prevValues[0] !== values[0] : false,
+        rightDrag: prevValues ? prevValues[1] !== values[1] : false,
       }),
       { inheritLastValue: true },
     )

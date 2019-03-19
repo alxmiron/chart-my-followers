@@ -57,21 +57,33 @@ const renderLinesChart = (canvas, ctx) => ({ chartSize, chartData, stepX, stepY,
   });
 };
 
-const renderTimeline = (canvas, ctx) => ({ chartSize, chartData, darkTheme }, { bottomOffset = 4 } = {}) => {
+const getLeaveEach = (dimension, level = 1) => {
+  if (dimension >= 1 / level) return level;
+  return getLeaveEach(dimension, level * 2);
+};
+
+const renderTimeline = (canvas, ctx) => ({ chartSize, chartData, stepX, stepY, darkTheme }, { scrollOffset, bottomOffset = 4 } = {}) => {
   ctx.font = `lighter ${12 * chartSize.ratio}px sans-serif`;
   ctx.fillStyle = darkTheme ? '#546778' : '#a5a5a5';
-  const labelWidth = 100 * chartSize.ratio;
-  const bestLabelsAmount = Math.floor(chartSize.width / labelWidth);
-  const leaveEach = Math.ceil(chartData.columns.x.data.length / bestLabelsAmount);
+  const normInterval = 100 * chartSize.ratio;
+  const dimension = stepX / normInterval;
+  const leaveEach = getLeaveEach(dimension);
   chartData.columns.x.data
-    .filter((value, index, arr) => index % leaveEach === 0 || index === arr.length - 1)
-    .forEach((timestamp, index, arr) => {
+    .map((timestamp, index, arr) => {
+      const alpha = index === 0 || index === arr.length - 1 ? 1 : leaveEach === 1 ? 1 : index % leaveEach === 0 ? 1 : 0;
+      return { timestamp, alpha };
+    })
+    .forEach(({ timestamp, alpha = 1 }, index, arr) => {
+      ctx.globalAlpha = alpha;
+      if (!alpha) return;
       const dateText = getDateText(new Date(timestamp));
-      const interval = chartSize.width / arr.length;
-      const correction = 0;
-      const leftOffset = interval * index + correction;
+      const labelWidth = dateText.length * 7 * chartSize.ratio;
+      const correction = index === 0 ? 0 : index === arr.length - 1 ? -labelWidth : -labelWidth / 2;
+      const xCord = getDataValueCoords({ chartSize, stepX, stepY }, { scrollOffset })(0, index).x;
+      const leftOffset = xCord + correction;
       ctx.fillText(dateText, leftOffset, chartSize.height - bottomOffset * chartSize.ratio);
     });
+  ctx.globalAlpha = 1;
 };
 
 const getGridRows = ({ chartSize, maxDataValue }, { topOffsetPercent = 0, bottomOffset = 0 }) => {
@@ -182,7 +194,7 @@ exports.renderChart = (canvas, ctx, $tooltipContainer) => ({ chartSize, chartDat
   if (gridRows.length) renderGrid(canvas, ctx)({ chartSize, darkTheme }, gridRows);
   renderLinesChart(canvas, ctx)({ chartSize, chartData, stepX, stepY, scrollOffset }, { lineWidth, bottomOffset });
   if (gridRows.length) renderGridValues(canvas, ctx)({ chartSize, darkTheme }, gridRows);
-  if (withTimeline) renderTimeline(canvas, ctx)({ chartSize, chartData, darkTheme });
+  if (withTimeline) renderTimeline(canvas, ctx)({ chartSize, chartData, stepX, stepY, darkTheme }, { scrollOffset });
   if (withTooltip && chartClick) {
     renderTooltip(canvas, ctx, $tooltipContainer)({ chartSize, chartData, darkTheme, chartClick, stepX, stepY, scrollOffset }, { bottomOffset });
   }
