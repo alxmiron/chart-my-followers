@@ -2,11 +2,26 @@ const getSliderObservable = require('./slider');
 const Observable = require('./observable');
 const { getChartSizeObservable, renderChart } = require('./chart');
 const { renderDataSelect, getSwitchesObservable, renderColumnControls, updateSwitchesSubscriptions } = require('./controls');
-const { formatChartData } = require('./data');
 const { getDeviceRatio, omitProps, updateThemeButton } = require('./utils');
-const { debug, debugDir } = require('./debug');
 
 const bootstrap = () => {
+  const formatChartData = dataset => {
+    return dataset.map(dataCase => {
+      const columns = dataCase.columns.reduce((acc, column) => {
+        const columnId = column[0];
+        acc[columnId] = {
+          id: columnId,
+          data: column.slice(1),
+          color: dataCase.colors[columnId],
+          name: dataCase.names[columnId],
+          type: dataCase.types[columnId],
+        };
+        return acc;
+      }, {});
+      return { columns, slider: { left: 0, right: 1 } };
+    });
+  };
+
   const bigCanvas = document.getElementById('big-canvas');
   const bigCtx = bigCanvas.getContext('2d');
 
@@ -54,8 +69,6 @@ const bootstrap = () => {
     .map(({ dataset, dataSelect }) => dataset[dataSelect])
     .withName('sourceData')
     .subscribe(sourceData => {
-      debug('Source data:');
-      debugDir(sourceData);
       renderColumnControls($columnSwitches, sourceData);
       updateSwitchesSubscriptions($columnSwitches, columnSwitches$);
     });
@@ -82,15 +95,12 @@ const bootstrap = () => {
   const withNavCanvas = fn => fn(navCanvas, navCtx);
 
   withBigCanvas((canvas, ctx) => {
-    const chartHeight = windowSize => Math.min(windowSize.height - /* paddings */ 10 - /* title */ 15 - 34 - /* nav */ 65 - /* controls */ 100, 600);
+    const chartHeight = windowSize => Math.min(windowSize.height /* paddings */ - 10 /* title */ - 34 /* nav */ - 65 /* controls */ - 110 - 15, 600);
     const chartSize$ = getChartSizeObservable(windowSize$, canvas, { height: chartHeight, ratio }).withName('chartSize');
 
     const bigChartData$ = chartData$
       .merge([slider$])
-      .map(({ chartData, slider }) => {
-        const result = { ...chartData, slider };
-        return result;
-      })
+      .map(({ chartData, slider }) => ({ ...chartData, slider }))
       .withName('chartData');
 
     const chartClick$ = new Observable('chartClick', { saveLastValue: false })

@@ -90,33 +90,16 @@ function sliderFactory() {
     return supportsPassive;
   }
 
-  function getSupportsTouchActionNone() {
-    return window.CSS && CSS.supports && CSS.supports('touch-action', 'none');
-  }
-
-  function subRangeRatio(pa, pb) {
-    return 100 / (pb - pa);
-  }
-
-  function fromPercentage(range, value) {
-    return (value * 100) / (range[1] - range[0]);
-  }
-
-  function toPercentage(range, value) {
-    return fromPercentage(range, range[0] < 0 ? value + Math.abs(range[0]) : value - range[0]);
-  }
-
-  function isPercentage(range, value) {
-    return (value * (range[1] - range[0])) / 100 + range[0];
-  }
-
-  function getJ(value, arr) {
+  const getSupportsTouchActionNone = () => window.CSS && CSS.supports && CSS.supports('touch-action', 'none');
+  const subRangeRatio = (pa, pb) => 100 / (pb - pa);
+  const fromPercentage = (range, value) => (value * 100) / (range[1] - range[0]);
+  const toPercentage = (range, value) => fromPercentage(range, range[0] < 0 ? value + Math.abs(range[0]) : value - range[0]);
+  const isPercentage = (range, value) => (value * (range[1] - range[0])) / 100 + range[0];
+  const getJ = (value, arr) => {
     let j = 1;
-    while (value >= arr[j]) {
-      j += 1;
-    }
+    while (value >= arr[j]) j += 1;
     return j;
-  }
+  };
 
   function toStepping(xVal, xPct, value) {
     if (value >= xVal.slice(-1)[0]) return 100;
@@ -291,10 +274,10 @@ function sliderFactory() {
   const testFormat = (parsed, entry) => {
     parsed.format = entry;
   };
-
-  function testCssPrefix(parsed, entry) {
+  const testCssPrefix = (parsed, entry) => {
     parsed.cssPrefix = entry;
-  }
+  };
+
   const testCssClasses = (parsed, entry) => {
     parsed.cssClasses = {};
     for (let key in entry) {
@@ -410,12 +393,9 @@ function sliderFactory() {
       return origin;
     }
 
-    function addConnect(base, add) {
-      if (!add) return false;
-      return addNodeTo(base, options.cssClasses.connect);
-    }
+    const addConnect = (base, add) => (add ? addNodeTo(base, options.cssClasses.connect) : false);
 
-    function addElements(connectOptions, base) {
+    const addElements = (connectOptions, base) => {
       const connectBase = addNodeTo(base, options.cssClasses.connects);
       scope_Handles = [];
       scope_Connects = [];
@@ -425,27 +405,22 @@ function sliderFactory() {
         scope_HandleNumbers[i] = i;
         scope_Connects.push(addConnect(connectBase, connectOptions[i + 1]));
       }
-    }
+    };
 
-    function addSlider(addTarget) {
+    const addSlider = addTarget => {
       addClass(addTarget, options.cssClasses.target);
       addClass(addTarget, options.cssClasses.ltr);
       addClass(addTarget, options.cssClasses.horizontal);
       return addNodeTo(addTarget, options.cssClasses.base);
-    }
+    };
 
-    function isHandleDisabled(handleNumber) {
-      const handleOrigin = scope_Handles[handleNumber];
-      return handleOrigin.hasAttribute('disabled');
-    }
-
-    function baseSize() {
+    const baseSize = () => {
       const rect = scope_Base.getBoundingClientRect();
       const alt = 'offsetWidth';
       return rect.width || scope_Base[alt];
-    }
+    };
 
-    function attachEvent(events, element, callback, data) {
+    const attachEvent = (events, element, callback, data) => {
       const method = function(e) {
         e = fixEvent(e, data.pageOffset, data.target || element);
         if (!e) return false;
@@ -462,7 +437,7 @@ function sliderFactory() {
         methods.push([eventName, method]);
       });
       return methods;
-    }
+    };
 
     function fixEvent(e, pageOffset, eventTarget) {
       const touch = e.type.indexOf('touch') === 0;
@@ -496,11 +471,9 @@ function sliderFactory() {
       return e;
     }
 
-    function documentLeave(event, data) {
-      if (event.type === 'mouseout' && event.target.nodeName === 'HTML' && event.relatedTarget === null) {
-        eventEnd(event, data);
-      }
-    }
+    const documentLeave = (event, data) => {
+      if (event.type === 'mouseout' && event.target.nodeName === 'HTML' && event.relatedTarget === null) eventEnd(event, data);
+    };
 
     function eventMove(event, data) {
       if (navigator.appVersion.indexOf('MSIE 9') === -1 && event.buttons === 0 && data.buttonsProperty !== 0) {
@@ -538,7 +511,6 @@ function sliderFactory() {
     }
 
     function eventStart(event, data) {
-      if (data.handleNumbers.some(isHandleDisabled)) return false;
       let handle;
       if (data.handleNumbers.length === 1) {
         const handleOrigin = scope_Handles[data.handleNumbers[0]];
@@ -617,18 +589,6 @@ function sliderFactory() {
           fireEvent('update', index);
         });
       }
-    }
-
-    function removeEvent(namespacedEvent) {
-      const event = namespacedEvent && namespacedEvent.split('.')[0];
-      const namespace = event && namespacedEvent.substring(event.length);
-      Object.keys(scope_Events).forEach(function(bind) {
-        const tEvent = bind.split('.')[0];
-        const tNamespace = bind.substring(tEvent.length);
-        if ((!event || event === tEvent) && (!namespace || namespace === tNamespace)) {
-          delete scope_Events[bind];
-        }
-      });
     }
 
     function fireEvent(eventName, handleNumber, tap) {
@@ -774,12 +734,7 @@ function sliderFactory() {
     function valueSetHandle(handleNumber, value, fireSetEvent) {
       const values = [];
       handleNumber = Number(handleNumber);
-      if (!(handleNumber >= 0 && handleNumber < scope_HandleNumbers.length)) {
-        throw new Error('invalid handle number, got: ' + handleNumber);
-      }
-      for (let i = 0; i < scope_HandleNumbers.length; i++) {
-        values[i] = null;
-      }
+      for (let i = 0; i < scope_HandleNumbers.length; i++) values[i] = null;
       values[handleNumber] = value;
       valueSet(values, fireSetEvent);
     }
@@ -801,7 +756,6 @@ function sliderFactory() {
 
     scope_Self = {
       on: bindEvent,
-      off: removeEvent,
       get: valueGet,
       set: valueSet,
       setHandle: valueSetHandle,
