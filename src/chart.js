@@ -57,24 +57,24 @@ const renderLinesChart = (canvas, ctx) => ({ chartSize, chartData, stepX, stepY,
   });
 };
 
-const getLeaveEach = (dimension, level = 1) => {
-  if (dimension >= 1 / level) return level;
-  return getLeaveEach(dimension, level * 2);
-};
-
 const renderTimeline = (canvas, ctx) => ({ chartSize, chartData, stepX, stepY, darkTheme }, { scrollOffset, bottomOffset = 4 } = {}) => {
+  const getLeaveEach = (dimension, level = 1) => (dimension >= 1 / level ? level : getLeaveEach(dimension, level * 2));
   const easeInOutQuad = x => (x < 0.5 ? 2 * x * x : -1 + (4 - 2 * x) * x);
+  const linearCut = (x, thresh = 0) => Math.max((1 / (1 - thresh)) * (x - thresh), 0);
   ctx.font = `lighter ${12 * chartSize.ratio}px sans-serif`;
   ctx.fillStyle = darkTheme ? '#546778' : '#a5a5a5';
   const normInterval = 100 * chartSize.ratio;
   const dimension = stepX / normInterval;
   const leaveEach = getLeaveEach(dimension);
+  const willBeDisplayedAlpha = linearCut(dimension * leaveEach - 1, 0.7);
   chartData.columns.x.data
     .map((timestamp, index, arr) => {
       let alpha = 1;
-      if (index !== 0 && index !== arr.length - 1 && leaveEach !== 1) {
-        alpha = index % leaveEach === 0 ? 1 : 0;
-      }
+      if (index === 0 || index === arr.length - 1 || leaveEach === 1) return { timestamp, alpha };
+      const isVisible = index % leaveEach === 0;
+      alpha = isVisible ? 1 : 0;
+      const willBeDisplayed = index % leaveEach === leaveEach / 2;
+      if (willBeDisplayed) alpha = willBeDisplayedAlpha;
       return { timestamp, alpha };
     })
     .forEach(({ timestamp, alpha = 1 }, index, arr) => {
@@ -123,9 +123,7 @@ const renderGridValues = (canvas, ctx) => ({ chartSize, darkTheme }, gridRows) =
   });
 };
 
-const clearChart = (canvas, ctx) => () => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-};
+const clearChart = (canvas, ctx) => () => ctx.clearRect(0, 0, canvas.width, canvas.height);
 
 const resizeChart = (canvas, chartSize) => {
   canvas.width = chartSize.width;
@@ -196,7 +194,6 @@ const renderTooltip = (canvas, ctx, $tooltipContainer) => (
 exports.renderChart = (canvas, ctx, $tooltipContainer) => ({ chartSize, chartData, chartClick, darkTheme }, options = {}) => {
   const { withGrid, withTimeline, withTooltip, lineWidth = 1, topOffsetPercent, bottomOffset = 0 } = options;
   const { stepX, stepY, scrollOffset, maxDataValue } = getChartSteps({ chartSize, chartData }, { topOffsetPercent, bottomOffset });
-  // console.log(stepX, stepY, scrollOffset);
   clearChart(canvas, ctx)();
   clearNodeChildren($tooltipContainer);
   const gridRows = withGrid ? getGridRows({ chartSize, chartData, stepX, stepY, maxDataValue }, { topOffsetPercent, bottomOffset }) : [];

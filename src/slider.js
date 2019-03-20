@@ -26,29 +26,9 @@ function sliderFactory() {
   const closest = (value, to) => Math.round(value / to) * to;
   const limit = a => Math.max(Math.min(a, 100), 0);
   const asArray = a => (Array.isArray(a) ? a : [a]);
-  const countDecimals = numStr => {
-    numStr = String(numStr);
-    const pieces = numStr.split('.');
-    return pieces.length > 1 ? pieces[1].length : 0;
-  };
-
-  const addClass = (el, className) => {
-    if (el.classList) {
-      el.classList.add(className);
-    } else {
-      el.className += ' ' + className;
-    }
-  };
-  const removeClass = (el, className) => {
-    if (el.classList) {
-      el.classList.remove(className);
-    } else {
-      el.className = el.className.replace(new RegExp('(^|\\b)' + className.split(' ').join('|') + '(\\b|$)', 'gi'), ' ');
-    }
-  };
-  const hasClass = (el, className) => {
-    return el.classList ? el.classList.contains(className) : new RegExp('\\b' + className + '\\b').test(el.className);
-  };
+  const addClass = (el, className) => el.classList.add(className);
+  const removeClass = (el, className) => el.classList.remove(className);
+  const hasClass = (el, className) => el.classList.contains(className);
 
   function getPageOffset(doc) {
     const supportPageOffset = window.pageXOffset !== undefined;
@@ -206,42 +186,6 @@ function sliderFactory() {
     return value;
   };
 
-  Spectrum.prototype.getDefaultStep = function(value, isDown, size) {
-    let j = getJ(value, this.xPct);
-    if (value === 100 || (isDown && value === this.xPct[j - 1])) j = Math.max(j - 1, 1);
-    return (this.xVal[j] - this.xVal[j - 1]) / size;
-  };
-
-  Spectrum.prototype.getNearbySteps = function(value) {
-    const j = getJ(value, this.xPct);
-    return {
-      stepBefore: {
-        startValue: this.xVal[j - 2],
-        step: this.xNumSteps[j - 2],
-        highestStep: this.xHighestCompleteStep[j - 2],
-      },
-      thisStep: {
-        startValue: this.xVal[j - 1],
-        step: this.xNumSteps[j - 1],
-        highestStep: this.xHighestCompleteStep[j - 1],
-      },
-      stepAfter: {
-        startValue: this.xVal[j],
-        step: this.xNumSteps[j],
-        highestStep: this.xHighestCompleteStep[j],
-      },
-    };
-  };
-
-  Spectrum.prototype.countStepDecimals = function() {
-    const stepDecimals = this.xNumSteps.map(countDecimals);
-    return Math.max.apply(null, stepDecimals);
-  };
-
-  Spectrum.prototype.convert = function(value) {
-    return this.getStep(this.toStepping(value));
-  };
-
   const defaultFormatter = {
     to: value => value !== undefined && value.toFixed(2),
     from: Number,
@@ -258,20 +202,8 @@ function sliderFactory() {
   const testConnect = (parsed, entry) => {
     parsed.connect = entry;
   };
-  const testOrientation = parsed => {
-    parsed.ort = 0;
-  };
   const testMargin = (parsed, entry) => {
     parsed.margin = parsed.spectrum.getMargin(entry);
-  };
-  const testLimit = (parsed, entry) => {
-    parsed.limit = parsed.spectrum.getMargin(entry);
-  };
-  const testDirection = parsed => {
-    parsed.dir = 0;
-  };
-  const testBehaviour = parsed => {
-    parsed.events = { drag: true };
   };
   const testFormat = (parsed, entry) => {
     parsed.format = entry;
@@ -288,22 +220,19 @@ function sliderFactory() {
     }
   };
 
-  function testOptions(options = {}) {
+  const testOptions = (options = {}) => {
     const parsed = {
       margin: 0,
-      limit: 0,
-      padding: 0,
       format: defaultFormatter,
+      events: { drag: true },
+      ort: 0,
+      dir: 0,
     };
     const tests = {
       start: { r: true, t: testStart },
       connect: { r: true, t: testConnect },
-      direction: { r: true, t: testDirection },
       range: { r: true, t: testRange },
-      orientation: { r: false, t: testOrientation },
       margin: { r: false, t: testMargin },
-      limit: { r: false, t: testLimit },
-      behaviour: { r: true, t: testBehaviour },
       format: { r: false, t: testFormat },
       cssPrefix: { r: true, t: testCssPrefix },
       cssClasses: { r: true, t: testCssClasses },
@@ -312,7 +241,6 @@ function sliderFactory() {
       connect: [true, true, true],
       direction: 'ltr',
       behaviour: 'drag',
-      orientation: 'horizontal',
       cssPrefix: 'slider-',
       margin: 100,
       range: { min: 0, max: 1000 },
@@ -338,10 +266,7 @@ function sliderFactory() {
       },
     };
     Object.keys(tests).forEach(function(name) {
-      if (!isSet(options[name]) && defaults[name] === undefined) {
-        if (tests[name].r) throw new Error("'" + name + "' is required.");
-        return true;
-      }
+      if (!isSet(options[name]) && defaults[name] === undefined) return true;
       tests[name].t(parsed, !isSet(options[name]) ? defaults[name] : options[name]);
     });
     const d = document.createElement('div');
@@ -351,7 +276,7 @@ function sliderFactory() {
     const styles = [['left', 'top'], ['right', 'bottom']];
     parsed.style = styles[parsed.dir][parsed.ort];
     return parsed;
-  }
+  };
 
   function scope(target, options, originalOptions) {
     let actions = getActions();
@@ -373,14 +298,14 @@ function sliderFactory() {
     let scope_Body = scope_Document.body;
     let scope_DirOffset = scope_Document.dir === 'rtl' || options.ort === 1 ? 0 : 100;
 
-    function addNodeTo(addTarget, className) {
+    const addNodeTo = (addTarget, className) => {
       const div = scope_Document.createElement('div');
       if (className) addClass(div, className);
       addTarget.appendChild(div);
       return div;
-    }
+    };
 
-    function addOrigin(base, handleNumber) {
+    const addOrigin = (base, handleNumber) => {
       const origin = addNodeTo(base, options.cssClasses.origin);
       const handle = addNodeTo(origin, options.cssClasses.handle);
       addNodeTo(handle, options.cssClasses.touchArea);
@@ -393,7 +318,7 @@ function sliderFactory() {
         addClass(handle, options.cssClasses.handleUpper);
       }
       return origin;
-    }
+    };
 
     const addConnect = (base, add) => (add ? addNodeTo(base, options.cssClasses.connect) : false);
 
@@ -477,25 +402,19 @@ function sliderFactory() {
       if (event.type === 'mouseout' && event.target.nodeName === 'HTML' && event.relatedTarget === null) eventEnd(event, data);
     };
 
-    function eventMove(event, data) {
-      if (navigator.appVersion.indexOf('MSIE 9') === -1 && event.buttons === 0 && data.buttonsProperty !== 0) {
-        return eventEnd(event, data);
-      }
+    const eventMove = (event, data) => {
+      if (navigator.appVersion.indexOf('MSIE 9') === -1 && event.buttons === 0 && data.buttonsProperty !== 0) return eventEnd(event, data);
       const movement = event.calcPoint - data.startCalcPoint;
       const proposal = (movement * 100) / data.baseSize;
       moveHandles(movement > 0, proposal, data.locations, data.handleNumbers);
-    }
+    };
 
-    function eventEnd(event, data) {
+    const eventEnd = (event, data) => {
       if (data.handle) {
         removeClass(data.handle, options.cssClasses.active);
         scope_ActiveHandlesCount -= 1;
       }
-
-      data.listeners.forEach(function(c) {
-        scope_DocumentElement.removeEventListener(c[0], c[1]);
-      });
-
+      data.listeners.forEach(c => scope_DocumentElement.removeEventListener(c[0], c[1]));
       if (scope_ActiveHandlesCount === 0) {
         removeClass(scope_Target, options.cssClasses.drag);
         setZindex();
@@ -504,13 +423,7 @@ function sliderFactory() {
           scope_Body.removeEventListener('selectstart', e => e.preventDefault());
         }
       }
-
-      data.handleNumbers.forEach(function(handleNumber) {
-        fireEvent('change', handleNumber);
-        fireEvent('set', handleNumber);
-        fireEvent('end', handleNumber);
-      });
-    }
+    };
 
     function eventStart(event, data) {
       let handle;
@@ -533,7 +446,6 @@ function sliderFactory() {
         buttonsProperty: event.buttons,
         locations: scope_Locations.slice(),
       });
-
       const endEvent = attachEvent(actions.end, scope_DocumentElement, eventEnd, {
         target: event.target,
         handle: handle,
@@ -541,7 +453,6 @@ function sliderFactory() {
         doNotReject: true,
         handleNumbers: data.handleNumbers,
       });
-
       const outEvent = attachEvent('mouseout', scope_DocumentElement, documentLeave, {
         target: event.target,
         handle: handle,
@@ -555,10 +466,6 @@ function sliderFactory() {
         if (scope_Handles.length > 1) addClass(scope_Target, options.cssClasses.drag);
         scope_Body.addEventListener('selectstart', e => e.preventDefault(), false);
       }
-
-      data.handleNumbers.forEach(function(handleNumber) {
-        fireEvent('start', handleNumber);
-      });
     }
 
     function bindSliderEvents() {
@@ -587,9 +494,7 @@ function sliderFactory() {
       scope_Events[namespacedEvent] = scope_Events[namespacedEvent] || [];
       scope_Events[namespacedEvent].push(callback);
       if (namespacedEvent.split('.')[0] === 'update') {
-        scope_Handles.forEach(function(a, index) {
-          fireEvent('update', index);
-        });
+        scope_Handles.forEach((a, index) => fireEvent('update', index));
       }
     }
 
@@ -606,27 +511,8 @@ function sliderFactory() {
 
     function checkHandlePosition(reference, handleNumber, to, lookBackward, lookForward, getValue) {
       if (scope_Handles.length > 1 && !options.events.unconstrained) {
-        if (lookBackward && handleNumber > 0) {
-          to = Math.max(to, reference[handleNumber - 1] + options.margin);
-        }
-        if (lookForward && handleNumber < scope_Handles.length - 1) {
-          to = Math.min(to, reference[handleNumber + 1] - options.margin);
-        }
-      }
-
-      if (scope_Handles.length > 1 && options.limit) {
-        if (lookBackward && handleNumber > 0) {
-          to = Math.min(to, reference[handleNumber - 1] + options.limit);
-        }
-
-        if (lookForward && handleNumber < scope_Handles.length - 1) {
-          to = Math.max(to, reference[handleNumber + 1] - options.limit);
-        }
-      }
-
-      if (options.padding) {
-        if (handleNumber === 0) to = Math.max(to, options.padding[0]);
-        if (handleNumber === scope_Handles.length - 1) to = Math.min(to, 100 - options.padding[1]);
+        if (lookBackward && handleNumber > 0) to = Math.max(to, reference[handleNumber - 1] + options.margin);
+        if (lookForward && handleNumber < scope_Handles.length - 1) to = Math.min(to, reference[handleNumber + 1] - options.margin);
       }
       to = scope_Spectrum.getStep(to);
       to = limit(to);
@@ -706,73 +592,37 @@ function sliderFactory() {
       scope_Connects[index].style[options.transformRule] = translateRule + ' ' + scaleRule;
     }
 
-    function resolveToValue(to, handleNumber) {
+    const resolveToValue = (to, handleNumber) => {
       if (to === null || to === false || to === undefined) return scope_Locations[handleNumber];
       if (typeof to === 'number') to = String(to);
       to = options.format.from(to);
       to = scope_Spectrum.toStepping(to);
       if (to === false || isNaN(to)) return scope_Locations[handleNumber];
       return to;
-    }
-
-    function valueSet(input, fireSetEvent) {
-      const values = asArray(input);
-      fireSetEvent = fireSetEvent === undefined ? true : !!fireSetEvent;
-      scope_HandleNumbers.forEach(function(handleNumber) {
-        setHandle(handleNumber, resolveToValue(values[handleNumber], handleNumber), true, false);
-      });
-      scope_HandleNumbers.forEach(function(handleNumber) {
-        setHandle(handleNumber, scope_Locations[handleNumber], true, true);
-      });
-      setZindex();
-      scope_HandleNumbers.forEach(function(handleNumber) {
-        fireEvent('update', handleNumber);
-        if (values[handleNumber] !== null && fireSetEvent) {
-          fireEvent('set', handleNumber);
-        }
-      });
-    }
-
-    function valueSetHandle(handleNumber, value, fireSetEvent) {
-      const values = [];
-      handleNumber = Number(handleNumber);
-      for (let i = 0; i < scope_HandleNumbers.length; i++) values[i] = null;
-      values[handleNumber] = value;
-      valueSet(values, fireSetEvent);
-    }
-
-    function valueGet() {
-      const values = scope_Values.map(options.format.to);
-      if (values.length === 1) return values[0];
-      return values;
-    }
-
-    function setupSlider() {
-      scope_Base = addSlider(scope_Target);
-      addElements(options.connect, scope_Base);
-      bindSliderEvents(options.events);
-      valueSet(options.start);
-    }
-
-    setupSlider();
-
-    scope_Self = {
-      on: bindEvent,
-      get: valueGet,
-      set: valueSet,
-      setHandle: valueSetHandle,
-      options: originalOptions,
-      target: scope_Target,
     };
+
+    const valueSet = input => {
+      const values = asArray(input);
+      scope_HandleNumbers.forEach(handleNumber => setHandle(handleNumber, resolveToValue(values[handleNumber], handleNumber), true, false));
+      scope_HandleNumbers.forEach(handleNumber => setHandle(handleNumber, scope_Locations[handleNumber], true, true));
+      setZindex();
+      scope_HandleNumbers.forEach(handleNumber => fireEvent('update', handleNumber));
+    };
+
+    scope_Base = addSlider(scope_Target);
+    addElements(options.connect, scope_Base);
+    bindSliderEvents(options.events);
+    valueSet(options.start);
+    scope_Self = { on: bindEvent, options: originalOptions, target: scope_Target };
     return scope_Self;
   }
 
-  function initialize(target, originalOptions) {
+  const initialize = (target, originalOptions) => {
     const options = testOptions(originalOptions, target);
     const api = scope(target, options, originalOptions);
     target.sliderApi = api;
     return api;
-  }
+  };
 
   return { create: initialize };
 }
