@@ -63,6 +63,7 @@ const getLeaveEach = (dimension, level = 1) => {
 };
 
 const renderTimeline = (canvas, ctx) => ({ chartSize, chartData, stepX, stepY, darkTheme }, { scrollOffset, bottomOffset = 4 } = {}) => {
+  const easeInOutQuad = x => (x < 0.5 ? 2 * x * x : -1 + (4 - 2 * x) * x);
   ctx.font = `lighter ${12 * chartSize.ratio}px sans-serif`;
   ctx.fillStyle = darkTheme ? '#546778' : '#a5a5a5';
   const normInterval = 100 * chartSize.ratio;
@@ -70,7 +71,10 @@ const renderTimeline = (canvas, ctx) => ({ chartSize, chartData, stepX, stepY, d
   const leaveEach = getLeaveEach(dimension);
   chartData.columns.x.data
     .map((timestamp, index, arr) => {
-      const alpha = index === 0 || index === arr.length - 1 ? 1 : leaveEach === 1 ? 1 : index % leaveEach === 0 ? 1 : 0;
+      let alpha = 1;
+      if (index !== 0 && index !== arr.length - 1 && leaveEach !== 1) {
+        alpha = index % leaveEach === 0 ? 1 : 0;
+      }
       return { timestamp, alpha };
     })
     .forEach(({ timestamp, alpha = 1 }, index, arr) => {
@@ -78,7 +82,12 @@ const renderTimeline = (canvas, ctx) => ({ chartSize, chartData, stepX, stepY, d
       if (!alpha) return;
       const dateText = getDateText(new Date(timestamp));
       const labelWidth = dateText.length * 7 * chartSize.ratio;
-      const correction = index === 0 ? 0 : index === arr.length - 1 ? -labelWidth : -labelWidth / 2;
+      const length = arr.length - 1;
+      const getHalfCorrection = index =>
+        index < arr.length / 2
+          ? -easeInOutQuad((2 * index) / length) * (labelWidth / 2)
+          : -easeInOutQuad((2 * index) / length - 1) * (labelWidth / 2);
+      const correction = index < arr.length / 2 ? getHalfCorrection(index) : -labelWidth / 2 + getHalfCorrection(index);
       const xCord = getDataValueCoords({ chartSize, stepX, stepY }, { scrollOffset })(0, index).x;
       const leftOffset = xCord + correction;
       ctx.fillText(dateText, leftOffset, chartSize.height - bottomOffset * chartSize.ratio);
