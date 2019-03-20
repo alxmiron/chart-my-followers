@@ -36,7 +36,7 @@ exports.omitProps = (object, propNames) => {
   }, {});
 };
 
-exports.getDateText = (date, { showDay } = {}) => {
+exports.getDateText = (date, showDay = false) => {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const label = `${months[date.getMonth()]} ${date.getDate()}`;
   if (showDay) {
@@ -46,14 +46,14 @@ exports.getDateText = (date, { showDay } = {}) => {
   return label;
 };
 
-exports.getDataValueCoords = ({ chartSize, stepX, stepY }, { scrollOffset = 0, bottomOffset = 0 } = {}) => (num = 0, index = 0) => {
+exports.getDataValueCoords = (chartSize, stepX, stepY, scrollOffset = 0, bottomOffset = 0) => (num = 0, index = 0) => {
   return {
     x: -scrollOffset + index * stepX,
     y: chartSize.height - bottomOffset * chartSize.ratio - num * stepY,
   };
 };
 
-exports.getTooltipPoint = ({ chartSize, chartData, chartClick, stepX, stepY }, { scrollOffset, bottomOffset } = {}) => {
+exports.getTooltipPoint = (chartSize, chartData, chartClick, stepX, stepY, scrollOffset, bottomOffset) => {
   const totalLength = chartData.columns.x.data.length - 1;
   const totalWidth = totalLength * stepX;
   const percentage = (scrollOffset + chartClick.x * chartSize.ratio) / totalWidth;
@@ -63,7 +63,7 @@ exports.getTooltipPoint = ({ chartSize, chartData, chartClick, stepX, stepY }, {
   const pointData = {
     targetIndex,
     date,
-    label: exports.getDateText(date, { showDay: true }),
+    label: exports.getDateText(date, true),
     data: Object.values(yColumns)
       .reverse()
       .reduce((acc, column) => {
@@ -71,10 +71,7 @@ exports.getTooltipPoint = ({ chartSize, chartData, chartClick, stepX, stepY }, {
           name: column.name,
           value: column.data[targetIndex],
           color: column.color,
-          coords: exports.getDataValueCoords({ chartSize, chartData, stepX, stepY }, { scrollOffset, bottomOffset })(
-            column.data[targetIndex],
-            targetIndex,
-          ),
+          coords: exports.getDataValueCoords(chartSize, stepX, stepY, scrollOffset, bottomOffset)(column.data[targetIndex], targetIndex),
         };
         return acc;
       }, {}),

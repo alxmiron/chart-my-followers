@@ -1,6 +1,7 @@
-const getSliderObservable = require('./slider');
+const getSliderObservable = require('./slider').f;
 const Observable = require('./observable');
-const { getChartSizeObservable, renderChart } = require('./chart');
+const getChartSizeObservable = require('./chartSize').f;
+const renderChart = require('./chart').f;
 const { renderDataSelect, getSwitchesObservable, renderColumnControls, updateSwitchesSubscriptions } = require('./controls');
 const { getDeviceRatio, omitProps, updateThemeButton } = require('./utils');
 
@@ -96,14 +97,14 @@ const bootstrap = () => {
 
   withBigCanvas((canvas, ctx) => {
     const chartHeight = windowSize => Math.min(windowSize.height /* paddings */ - 10 /* title */ - 34 /* nav */ - 65 /* controls */ - 110 - 15, 600);
-    const chartSize$ = getChartSizeObservable(windowSize$, canvas, { height: chartHeight, ratio }).withName('chartSize');
+    const chartSize$ = getChartSizeObservable(windowSize$, canvas, chartHeight, ratio).withName('chartSize');
 
     const bigChartData$ = chartData$
       .merge([slider$])
       .map(({ chartData, slider }) => ({ ...chartData, slider }))
       .withName('chartData');
 
-    const chartClick$ = new Observable('chartClick', { saveLastValue: false })
+    const chartClick$ = new Observable('chartClick', false)
       .fromEvent(canvas, 'click')
       .map(event => ({ x: event.offsetX, y: event.offsetY }))
       .withOption('saveLastValue', false)
@@ -111,16 +112,16 @@ const bootstrap = () => {
 
     bigChartData$.merge([chartSize$, chartClick$, darkTheme$]).subscribe(({ chartSize, chartData, chartClick, darkTheme }) => {
       const options = { withGrid: true, withTimeline: true, withTooltip: true, lineWidth: 1.4, topOffsetPercent: 0.2, bottomOffset: 20 };
-      renderChart(canvas, ctx, $tooltipContainer)({ chartSize, chartData, chartClick, darkTheme }, options);
+      renderChart(canvas, ctx, $tooltipContainer)(chartSize, chartData, chartClick, darkTheme, options);
     });
   });
 
   withNavCanvas((canvas, ctx) => {
-    const chartSize$ = getChartSizeObservable(windowSize$, canvas, { height: 60, ratio }).withName('chartSize');
+    const chartSize$ = getChartSizeObservable(windowSize$, canvas, 60, ratio).withName('chartSize');
 
     chartData$.merge([chartSize$]).subscribe(({ chartSize, chartData }) => {
       const options = { topOffsetPercent: 0.1 };
-      renderChart(canvas, ctx, $tooltipContainer)({ chartSize, chartData }, options);
+      renderChart(canvas, ctx, $tooltipContainer)(chartSize, chartData, null, false, options);
     });
   });
 

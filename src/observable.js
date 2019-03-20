@@ -1,5 +1,5 @@
 class Observable {
-  constructor(name, { saveLastValue = true } = {}) {
+  constructor(name, saveLastValue = true) {
     this.observers = [];
     this.name = name;
     this.saveLastValue = saveLastValue;
@@ -28,18 +28,18 @@ class Observable {
     this.broadcast(event);
     return this;
   }
-  map(fn, { inheritLastValue } = {}) {
+  map(fn, last = false) {
     const child$ = new Observable();
-    if (inheritLastValue) child$.lastValue = fn(this.lastValue);
+    if (last) child$.lastValue = fn(this.lastValue);
     this.subscribe(data => child$.broadcast(fn(data, this.lastValue)));
     return child$;
   }
-  filter(fn, { inheritLastValue }) {
+  filter(fn, last = false) {
     const child$ = new Observable();
     this.subscribe(data => {
       if (fn(data, this.lastValue)) child$.broadcast(data);
     });
-    if (inheritLastValue && fn(this.lastValue)) child$.lastValue = this.lastValue;
+    if (last && fn(this.lastValue)) child$.lastValue = this.lastValue;
     return child$;
   }
   repeatLast() {

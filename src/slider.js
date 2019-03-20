@@ -1,13 +1,13 @@
 const Observable = require('./observable');
 
-module.exports = function getSliderObservable() {
+exports.f = () => {
   const rangeSlider = sliderFactory();
   const sliderNode = document.getElementById('navigation-handler');
   rangeSlider.create(sliderNode);
   const slider$ = new Observable('slider');
   sliderNode.sliderApi.on('update', data => slider$.broadcast(data));
   const detectedSlider$ = slider$
-    .filter((values, prevValues) => !(prevValues && prevValues.join('-') === values.join('-')), { inheritLastValue: true })
+    .filter((values, prevValues) => !(prevValues && prevValues.join('-') === values.join('-')), true)
     .map(
       (values, prevValues) => ({
         left: parseInt(values[0]) / 1000,
@@ -15,7 +15,7 @@ module.exports = function getSliderObservable() {
         leftDrag: prevValues ? prevValues[0] !== values[0] : false,
         rightDrag: prevValues ? prevValues[1] !== values[1] : false,
       }),
-      { inheritLastValue: true },
+      true,
     )
     .withName('slider');
   return detectedSlider$;
@@ -254,11 +254,9 @@ function sliderFactory() {
         handleUpper: 'handle-upper',
         touchArea: 'touch-area',
         horizontal: 'horizontal',
-        background: 'background',
         connect: 'connect',
         connects: 'connects',
         ltr: 'ltr',
-        rtl: 'rtl',
         draggable: 'draggable',
         drag: 'state-drag',
         tap: 'state-tap',
