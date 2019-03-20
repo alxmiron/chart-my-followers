@@ -26,52 +26,20 @@ const formatGridValue = value => {
   return `${value}`;
 };
 
-const getChartSteps = (chartSize, chartData, topOffsetPercent = 0, bottomOffset = 0) => {
-  const yColumns = omitProps(chartData.columns, ['x']);
-  const totalLength = chartData.columns.x.data.length - 1;
-  const stepX = chartSize.width / ((chartData.slider.right - chartData.slider.left) * totalLength);
-  const totalWidth = totalLength * stepX;
-  const scrollOffset = totalWidth * chartData.slider.left;
-  const leftSideIndex = Math.round(chartData.columns.x.data.length * chartData.slider.left);
-  const rightSideIndex = Math.round(chartData.columns.x.data.length * chartData.slider.right) - 1;
-  const maxDataValue = Math.max(
-    ...Object.values(yColumns)
-      .map(col => col.data.slice(leftSideIndex, rightSideIndex + 1))
-      .reduce((acc, arr) => acc.concat(arr), []),
-  );
-  const availableHeight = chartSize.height * (1 - topOffsetPercent) - bottomOffset * chartSize.ratio;
-  const stepY = availableHeight / maxDataValue;
-  return { stepX, stepY, maxDataValue, scrollOffset };
-};
-
-const time = 1; // sec
-const fps = 60; // frame/sec
-
-const drawLinesChart = (ctx, chartSize, chartData, stepX, stepY, scrollOffset, bottomOffset, lineWidth) => {
+const renderLinesChart = (ctx, chartSize, chartData, stepX, stepY, scrollOffset, leftSideIndex, rightSideIndex, lineWidth, bottomOffset) => {
   const yColumns = omitProps(chartData.columns, ['x']);
   Object.values(yColumns).forEach(columnData => {
     ctx.strokeStyle = columnData.color.toUpperCase();
     ctx.lineWidth = lineWidth * chartSize.ratio;
     ctx.beginPath();
     columnData.data.forEach((num, index) => {
+      if (index < leftSideIndex - 2 || index > rightSideIndex + 2) return;
       const coords = getDataValueCoords(chartSize, stepX, stepY, scrollOffset, bottomOffset)(num, index);
       ctx.lineTo(coords.x, coords.y);
     });
     ctx.stroke();
   });
 };
-
-const renderLinesChartFactory = initState => {
-  let state = initState; // save previous stepY
-  return ctx => (chartSize, chartData, stepX, stepY, scrollOffset, lineWidth = 1, bottomOffset = 0) => {
-    const prevStepY = state;
-    // console.log(prevStepY, stepY, prevStepY !== stepY);
-    drawLinesChart(ctx, chartSize, chartData, stepX, stepY, scrollOffset, bottomOffset, lineWidth);
-    state = stepY;
-  };
-};
-
-const renderLinesChart = renderLinesChartFactory();
 
 const renderTimeline = ctx => (chartSize, chartData, stepX, stepY, darkTheme, scrollOffset, bottomOffset = 4) => {
   const getLeaveEach = (dimension, level = 1) => (dimension >= 1 / level ? level : getLeaveEach(dimension, level * 2));
@@ -197,17 +165,35 @@ const renderTooltip = (ctx, $tooltipContainer) => (chartSize, chartData, darkThe
   $tooltip.style.visibility = 'visible';
 };
 
-exports.f = (canvas, ctx, $tooltipContainer) => (chartSize, chartData, chartClick, darkTheme, options = {}) => {
+exports.renderChart = (canvas, ctx, $tooltipContainer) => (chartSize, chartData, chartConfig, chartClick, darkTheme, options) => {
   const { withGrid, withTimeline, withTooltip, lineWidth = 1, topOffsetPercent, bottomOffset = 0 } = options;
-  const { stepX, stepY, scrollOffset, maxDataValue } = getChartSteps(chartSize, chartData, topOffsetPercent, bottomOffset);
+  const { stepX, stepY, scrollOffset, maxDataValue, leftSideIndex, rightSideIndex } = chartConfig;
   clearChart(canvas, ctx)();
   clearNodeChildren($tooltipContainer);
   const gridRows = withGrid ? getGridRows(chartSize, maxDataValue, topOffsetPercent, bottomOffset) : [];
   if (gridRows.length) renderGrid(ctx)(chartSize, darkTheme, gridRows);
-  renderLinesChart(ctx)(chartSize, chartData, stepX, stepY, scrollOffset, lineWidth, bottomOffset);
+  renderLinesChart(ctx, chartSize, chartData, stepX, stepY, scrollOffset, leftSideIndex, rightSideIndex, lineWidth, bottomOffset);
   if (gridRows.length) renderGridValues(ctx)(chartSize, darkTheme, gridRows);
   if (withTimeline) renderTimeline(ctx)(chartSize, chartData, stepX, stepY, darkTheme, scrollOffset);
   if (withTooltip && chartClick) {
     renderTooltip(ctx, $tooltipContainer)(chartSize, chartData, darkTheme, chartClick, stepX, stepY, scrollOffset, bottomOffset);
   }
+};
+
+exports.getChartConfig = (chartSize, chartData, topOffsetPercent = 0, bottomOffset = 0) => {
+  const yColumns = omitProps(chartData.columns, ['x']);
+  const totalLength = chartData.columns.x.data.length - 1;
+  const stepX = chartSize.width / ((chartData.slider.right - chartData.slider.left) * totalLength);
+  const totalWidth = totalLength * stepX;
+  const scrollOffset = totalWidth * chartData.slider.left;
+  const leftSideIndex = Math.round(chartData.columns.x.data.length * chartData.slider.left);
+  const rightSideIndex = Math.round(chartData.columns.x.data.length * chartData.slider.right) - 1;
+  const maxDataValue = Math.max(
+    ...Object.values(yColumns)
+      .map(col => col.data.slice(leftSideIndex, rightSideIndex + 1))
+      .reduce((acc, arr) => acc.concat(arr), []),
+  );
+  const availableHeight = chartSize.height * (1 - topOffsetPercent) - bottomOffset * chartSize.ratio;
+  const stepY = availableHeight / maxDataValue;
+  return { stepX, stepY, maxDataValue, scrollOffset, leftSideIndex, rightSideIndex };
 };

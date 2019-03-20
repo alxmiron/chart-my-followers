@@ -1,7 +1,7 @@
 const getSliderObservable = require('./slider').f;
 const Observable = require('./observable');
 const getChartSizeObservable = require('./chartSize').f;
-const renderChart = require('./chart').f;
+const { renderChart, getChartConfig } = require('./chart');
 const { renderDataSelect, getSwitchesObservable, renderColumnControls, updateSwitchesSubscriptions } = require('./controls');
 const { getDeviceRatio, omitProps, updateThemeButton } = require('./utils');
 
@@ -96,6 +96,7 @@ const bootstrap = () => {
   const withNavCanvas = fn => fn(navCanvas, navCtx);
 
   withBigCanvas((canvas, ctx) => {
+    const chartOptions = { withGrid: true, withTimeline: true, withTooltip: true, lineWidth: 1.4, topOffsetPercent: 0.2, bottomOffset: 20 };
     const chartHeight = windowSize => Math.min(windowSize.height /* paddings */ - 10 /* title */ - 34 /* nav */ - 65 /* controls */ - 110 - 15, 600);
     const chartSize$ = getChartSizeObservable(windowSize$, canvas, chartHeight, ratio).withName('chartSize');
 
@@ -110,18 +111,29 @@ const bootstrap = () => {
       .withOption('saveLastValue', false)
       .withName('chartClick');
 
-    bigChartData$.merge([chartSize$, chartClick$, darkTheme$]).subscribe(({ chartSize, chartData, chartClick, darkTheme }) => {
-      const options = { withGrid: true, withTimeline: true, withTooltip: true, lineWidth: 1.4, topOffsetPercent: 0.2, bottomOffset: 20 };
-      renderChart(canvas, ctx, $tooltipContainer)(chartSize, chartData, chartClick, darkTheme, options);
-    });
+    const chartConfig$ = bigChartData$
+      .merge([chartSize$])
+      .map(({ chartSize, chartData }) => {
+        return getChartConfig(chartSize, chartData, chartOptions.topOffsetPercent, chartOptions.bottomOffset);
+      })
+      .withName('chartConfig')
+      .subscribe(console.dir);
+
+    bigChartData$
+      .merge([chartSize$, chartConfig$, chartClick$, darkTheme$])
+      .subscribe(({ chartSize, chartData, chartConfig, chartClick, darkTheme }) => {
+        if (!chartData) return;
+        renderChart(canvas, ctx, $tooltipContainer)(chartSize, chartData, chartConfig, chartClick, darkTheme, chartOptions);
+      });
   });
 
   withNavCanvas((canvas, ctx) => {
+    const chartOptions = { topOffsetPercent: 0.1 };
     const chartSize$ = getChartSizeObservable(windowSize$, canvas, 60, ratio).withName('chartSize');
 
     chartData$.merge([chartSize$]).subscribe(({ chartSize, chartData }) => {
-      const options = { topOffsetPercent: 0.1 };
-      renderChart(canvas, ctx, $tooltipContainer)(chartSize, chartData, null, false, options);
+      const chartConfig = getChartConfig(chartSize, chartData, chartOptions.topOffsetPercent);
+      renderChart(canvas, ctx, $tooltipContainer)(chartSize, chartData, chartConfig, null, false, chartOptions);
     });
   });
 
