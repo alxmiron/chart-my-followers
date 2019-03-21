@@ -1,28 +1,11 @@
 const getSliderObservable = require('./slider').f;
 const Observable = require('./observable');
 const getChartSizeObservable = require('./chartSize').f;
-const { renderChart, getChartConfig } = require('./chart');
-const { renderDataSelect, getSwitchesObservable, renderColumnControls, updateSwitchesSubscriptions } = require('./controls');
+const { renderChart, getChartConfig, getGridRows } = require('./chart');
+const { renderDataSelect, renderColumnControls, updateSwitchesSubscriptions } = require('./controls');
 const { getDeviceRatio, updateThemeButton } = require('./utils');
 
 const bootstrap = () => {
-  const formatChartData = dataset => {
-    return dataset.map(dataCase => {
-      const columns = dataCase.columns.reduce((acc, column) => {
-        const columnId = column[0];
-        acc[columnId] = {
-          id: columnId,
-          data: column.slice(1),
-          color: dataCase.colors[columnId],
-          name: dataCase.names[columnId],
-          type: dataCase.types[columnId],
-        };
-        return acc;
-      }, {});
-      return { columns };
-    });
-  };
-
   const bigCanvas = document.getElementById('big-canvas');
   const bigCtx = bigCanvas.getContext('2d');
 
@@ -62,16 +45,18 @@ const bootstrap = () => {
   const dataset$ = new Observable('dataset');
 
   // Columns checkboxes
-  const columnSwitches$ = getSwitchesObservable($columnSwitches);
+  const columnSwitches$ = new Observable('columnSwitches');
+  columnSwitches$.lastValue = {};
 
   // Dataset case (filtered by dataSelect)
   const sourceData$ = dataset$
     .merge([dataSelect$.withName('dataSelect')])
-    .map(({ dataset, dataSelect }) => ({ case: dataset[dataSelect], index: dataSelect }))
+    .map(({ dataset, dataSelect }) => ({ columns: dataset[dataSelect], index: dataSelect }))
     .withName('sourceData')
     .subscribe(sourceData => {
-      renderColumnControls($columnSwitches, sourceData.case);
-      updateSwitchesSubscriptions($columnSwitches, columnSwitches$);
+      const firstCall = !$columnSwitches.childNodes.length;
+      renderColumnControls($columnSwitches, sourceData.columns);
+      updateSwitchesSubscriptions($columnSwitches, columnSwitches$, firstCall);
     });
 
   const invertEase = false;
@@ -87,8 +72,8 @@ const bootstrap = () => {
   const chartData$ = sourceData$
     .merge([alphaSwitches$])
     .map(({ alphaSwitches, sourceData }) => ({
-      columns: Object.keys(sourceData.case.columns).reduce((acc, colId) => {
-        acc[colId] = { ...sourceData.case.columns[colId], alpha: alphaSwitches[colId] };
+      columns: Object.keys(sourceData.columns).reduce((acc, colId) => {
+        acc[colId] = { ...sourceData.columns[colId], alpha: alphaSwitches[colId] };
         return acc;
       }, {}),
       dataIndex: sourceData.index,
@@ -135,6 +120,10 @@ const bootstrap = () => {
         return data;
       })
       .withTransition(getStepY, setStepY, { ignoreIf: ignoreStepYif })
+      .map(chartData => {
+        chartData.gridRows = getGridRows(chartData, chartOptions.topOffsetPercent, chartOptions.bottomOffset);
+        return chartData;
+      })
       .withName('chartData');
 
     bigChartData$.merge([chartClick$, darkTheme$]).subscribe(({ chartData, chartClick, darkTheme }) => {
@@ -161,6 +150,22 @@ const bootstrap = () => {
       renderChart(canvas, ctx, $tooltipContainer)(data, null, false, chartOptions);
     });
   });
+
+  const formatChartData = dataset => {
+    return dataset.map(dataCase => {
+      return dataCase.columns.reduce((acc, column) => {
+        const columnId = column[0];
+        acc[columnId] = {
+          id: columnId,
+          data: column.slice(1),
+          color: dataCase.colors[columnId],
+          name: dataCase.names[columnId],
+          type: dataCase.types[columnId],
+        };
+        return acc;
+      }, {});
+    });
+  };
 
   // Load dataset from server
   fetch('chart_data.min.json')

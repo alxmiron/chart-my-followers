@@ -1,8 +1,7 @@
-const Observable = require('./observable');
 const { omitProps, clearNodeChildren, createElement } = require('./utils');
 
-const renderColumnControls = ($columnSwitches, sourceData) => {
-  const yColumns = omitProps(sourceData.columns, ['x']);
+const renderColumnControls = ($columnSwitches, dataColumns) => {
+  const yColumns = omitProps(dataColumns, ['x']);
   clearNodeChildren($columnSwitches); // remove current switches
   Object.values(yColumns).forEach(column => {
     const label = createElement('label', { className: 'switch-button' });
@@ -15,10 +14,11 @@ const renderColumnControls = ($columnSwitches, sourceData) => {
     label.appendChild(text);
     $columnSwitches.appendChild(label);
   });
-  return sourceData;
+  return dataColumns;
 };
 
-const updateSwitchesSubscriptions = ($columnSwitches, columnSwitches$) => {
+const updateSwitchesSubscriptions = ($columnSwitches, columnSwitches$, firstCall) => {
+  const newValue = {};
   for (let idx = 0; idx < $columnSwitches.childNodes.length; idx++) {
     const $label = $columnSwitches.childNodes[idx];
     let $input;
@@ -27,6 +27,7 @@ const updateSwitchesSubscriptions = ($columnSwitches, columnSwitches$) => {
       if ($child.nodeName === 'INPUT') $input = $child;
     }
     columnSwitches$.lastValue[$input.name] = $input.checked ? 1 : 0;
+    newValue[$input.name] = $input.checked ? 1 : 0;
     $input.addEventListener('change', event =>
       columnSwitches$.broadcast({
         ...columnSwitches$.lastValue,
@@ -34,13 +35,8 @@ const updateSwitchesSubscriptions = ($columnSwitches, columnSwitches$) => {
       }),
     );
   }
+  if (!firstCall) columnSwitches$.broadcast(newValue);
   return columnSwitches$;
-};
-
-const getSwitchesObservable = $columnSwitches => {
-  const switches$ = new Observable('columnSwitches');
-  switches$.lastValue = {};
-  return updateSwitchesSubscriptions($columnSwitches, switches$);
 };
 
 const renderDataSelect = ($dataSelect, dataset) => {
@@ -51,4 +47,4 @@ const renderDataSelect = ($dataSelect, dataset) => {
   return dataset;
 };
 
-module.exports = { renderColumnControls, getSwitchesObservable, updateSwitchesSubscriptions, renderDataSelect };
+module.exports = { renderColumnControls, updateSwitchesSubscriptions, renderDataSelect };

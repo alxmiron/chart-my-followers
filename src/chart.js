@@ -83,20 +83,6 @@ const renderTimeline = ctx => (chartData, stepX, stepY, darkTheme, scrollOffset,
   ctx.globalAlpha = 1;
 };
 
-const getGridRows = (chartSize, maxDataValue, topOffsetPercent = 0, bottomOffset = 0) => {
-  if (!maxDataValue) return [];
-  const rowsAmount = 6;
-  const gridRows = Array(rowsAmount)
-    .fill(1)
-    .map((value, idx) => Math.round((idx * maxDataValue) / rowsAmount))
-    .map((value, idx, arr) => {
-      const interval = (chartSize.height * (1 - topOffsetPercent) - bottomOffset * chartSize.ratio) / arr.length;
-      const level = chartSize.height - bottomOffset * chartSize.ratio - interval * idx;
-      return { value, level, label: formatGridValue(value) };
-    });
-  return gridRows;
-};
-
 const renderGrid = ctx => (chartSize, darkTheme, gridRows) => {
   gridRows.forEach(row => {
     renderLine(ctx)(0, row.level, chartSize.width, row.level, { ratio: chartSize.ratio, color: darkTheme ? '#313d4d' : '#eaeaea' });
@@ -199,11 +185,11 @@ const renderTooltip = (ctx, $tooltipContainer) => (chartData, darkTheme, chartCl
 
 exports.renderChart = (canvas, ctx, $tooltipContainer) => (chartData, chartClick, darkTheme, options) => {
   const chartSize = chartData.size;
-  const { withGrid, withTimeline, withTooltip, lineWidth = 1, topOffsetPercent, bottomOffset = 0 } = options;
-  const { stepX, stepY, scrollOffset, maxDataValue, leftSideIndex, rightSideIndex } = chartData.config;
+  const gridRows = chartData.gridRows || [];
+  const { withTimeline, withTooltip, lineWidth = 1, bottomOffset = 0 } = options;
+  const { stepX, stepY, scrollOffset, leftSideIndex, rightSideIndex } = chartData.config;
   clearChart(canvas, ctx)();
   clearNodeChildren($tooltipContainer);
-  const gridRows = withGrid ? getGridRows(chartSize, maxDataValue, topOffsetPercent, bottomOffset) : [];
   if (gridRows.length) renderGrid(ctx)(chartSize, darkTheme, gridRows);
   renderLinesChart(ctx, chartData, stepX, stepY, scrollOffset, leftSideIndex, rightSideIndex, lineWidth, bottomOffset);
   if (gridRows.length) renderGridValues(ctx)(chartSize, darkTheme, gridRows);
@@ -231,4 +217,19 @@ exports.getChartConfig = (chartData, topOffsetPercent = 0, bottomOffset = 0) => 
   const availableHeight = chartSize.height * (1 - topOffsetPercent) - bottomOffset * chartSize.ratio;
   const stepY = Math.min(availableHeight / maxDataValue, availableHeight / 10);
   return { stepX, stepY, maxDataValue, scrollOffset, leftSideIndex, rightSideIndex };
+};
+
+exports.getGridRows = (chartData, topOffsetPercent = 0, bottomOffset = 0) => {
+  if (!chartData.config.maxDataValue) return [];
+  const chartSize = chartData.size;
+  const rowsAmount = 6;
+  const gridRows = Array(rowsAmount)
+    .fill(1)
+    .map((v, idx) => {
+      const value = Math.round((idx * chartData.config.maxDataValue) / rowsAmount);
+      const interval = (chartSize.height * (1 - topOffsetPercent) - bottomOffset * chartSize.ratio) / rowsAmount;
+      const level = chartSize.height - bottomOffset * chartSize.ratio - interval * idx;
+      return { value, level, label: formatGridValue(value) };
+    });
+  return gridRows;
 };
