@@ -53,32 +53,6 @@ exports.getDataValueCoords = (chartSize, stepX, stepY, scrollOffset = 0, bottomO
   };
 };
 
-exports.getTooltipPoint = (chartSize, chartData, chartClick, stepX, stepY, scrollOffset, bottomOffset) => {
-  const totalLength = chartData.columns.x.data.length - 1;
-  const totalWidth = totalLength * stepX;
-  const percentage = (scrollOffset + chartClick.x * chartSize.ratio) / totalWidth;
-  const targetIndex = Math.round(totalLength * percentage);
-  const date = new Date(chartData.columns.x.data[targetIndex]);
-  const yColumns = exports.omitProps(chartData.columns, ['x']);
-  const pointData = {
-    targetIndex,
-    date,
-    label: exports.getDateText(date, true),
-    data: Object.values(yColumns)
-      .reverse()
-      .reduce((acc, column) => {
-        acc[column.id] = {
-          name: column.name,
-          value: column.data[targetIndex],
-          color: column.color,
-          coords: exports.getDataValueCoords(chartSize, stepX, stepY, scrollOffset, bottomOffset)(column.data[targetIndex], targetIndex),
-        };
-        return acc;
-      }, {}),
-  };
-  return pointData;
-};
-
 exports.updateThemeButton = ($themeButton, nightMode) => {
   exports.clearNodeChildren($themeButton);
   $themeButton.appendChild(document.createTextNode(nightMode ? 'Switch to Day Mode' : 'Switch to Night Mode'));

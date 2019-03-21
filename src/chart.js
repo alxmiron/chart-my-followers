@@ -1,4 +1,4 @@
-const { getDataValueCoords, getTooltipPoint, omitProps, getDateText } = require('./utils');
+const { getDataValueCoords, omitProps, getDateText } = require('./utils');
 const { createElement, clearNodeChildren } = require('./utils');
 
 const renderLine = ctx => (x0, y0, x1, y1, { color = '#eaeaea', lineWidth = 1, ratio = 1 } = {}) => {
@@ -26,7 +26,8 @@ const formatGridValue = value => {
   return `${value}`;
 };
 
-const renderLinesChart = (ctx, chartSize, chartData, stepX, stepY, scrollOffset, leftSideIndex, rightSideIndex, lineWidth, bottomOffset) => {
+const renderLinesChart = (ctx, chartData, stepX, stepY, scrollOffset, leftSideIndex, rightSideIndex, lineWidth, bottomOffset) => {
+  const chartSize = chartData.size;
   const yColumns = omitProps(chartData.columns, ['x']);
   Object.values(yColumns).forEach(columnData => {
     ctx.strokeStyle = columnData.color.toUpperCase();
@@ -41,7 +42,8 @@ const renderLinesChart = (ctx, chartSize, chartData, stepX, stepY, scrollOffset,
   });
 };
 
-const renderTimeline = ctx => (chartSize, chartData, stepX, stepY, darkTheme, scrollOffset, bottomOffset = 4) => {
+const renderTimeline = ctx => (chartData, stepX, stepY, darkTheme, scrollOffset, bottomOffset = 4) => {
+  const chartSize = chartData.size;
   const getLeaveEach = (dimension, level = 1) => (dimension >= 1 / level ? level : getLeaveEach(dimension, level * 2));
   const easeInOutQuad = x => (x < 0.5 ? 2 * x * x : -1 + (4 - 2 * x) * x);
   const linearCut = (x, thresh = 0) => Math.max((1 / (1 - thresh)) * (x - thresh), 0);
@@ -142,8 +144,36 @@ const getTooltipPosition = (chartSize, point, topOffset, tooltipClientWidth) => 
   return { left, top: topOffset };
 };
 
-const renderTooltip = (ctx, $tooltipContainer) => (chartSize, chartData, darkTheme, chartClick, stepX, stepY, scrollOffset, bottomOffset = 0) => {
-  const pointData = getTooltipPoint(chartSize, chartData, chartClick, stepX, stepY, scrollOffset, bottomOffset);
+const getTooltipPoint = (chartData, chartClick, stepX, stepY, scrollOffset, bottomOffset) => {
+  const chartSize = chartData.size;
+  const totalLength = chartData.columns.x.data.length - 1;
+  const totalWidth = totalLength * stepX;
+  const percentage = (scrollOffset + chartClick.x * chartSize.ratio) / totalWidth;
+  const targetIndex = Math.round(totalLength * percentage);
+  const date = new Date(chartData.columns.x.data[targetIndex]);
+  const yColumns = omitProps(chartData.columns, ['x']);
+  const pointData = {
+    targetIndex,
+    date,
+    label: getDateText(date, true),
+    data: Object.values(yColumns)
+      .reverse()
+      .reduce((acc, column) => {
+        acc[column.id] = {
+          name: column.name,
+          value: column.data[targetIndex],
+          color: column.color,
+          coords: getDataValueCoords(chartSize, stepX, stepY, scrollOffset, bottomOffset)(column.data[targetIndex], targetIndex),
+        };
+        return acc;
+      }, {}),
+  };
+  return pointData;
+};
+
+const renderTooltip = (ctx, $tooltipContainer) => (chartData, darkTheme, chartClick, stepX, stepY, scrollOffset, bottomOffset = 0) => {
+  const chartSize = chartData.size;
+  const pointData = getTooltipPoint(chartData, chartClick, stepX, stepY, scrollOffset, bottomOffset);
   const points = Object.values(pointData.data);
   if (!points.length) return;
   const topOffset = 5;
@@ -165,22 +195,24 @@ const renderTooltip = (ctx, $tooltipContainer) => (chartSize, chartData, darkThe
   $tooltip.style.visibility = 'visible';
 };
 
-exports.renderChart = (canvas, ctx, $tooltipContainer) => (chartSize, chartData, chartConfig, chartClick, darkTheme, options) => {
+exports.renderChart = (canvas, ctx, $tooltipContainer) => (chartData, chartClick, darkTheme, options) => {
+  const chartSize = chartData.size;
   const { withGrid, withTimeline, withTooltip, lineWidth = 1, topOffsetPercent, bottomOffset = 0 } = options;
-  const { stepX, stepY, scrollOffset, maxDataValue, leftSideIndex, rightSideIndex } = chartConfig;
+  const { stepX, stepY, scrollOffset, maxDataValue, leftSideIndex, rightSideIndex } = chartData.config;
   clearChart(canvas, ctx)();
   clearNodeChildren($tooltipContainer);
   const gridRows = withGrid ? getGridRows(chartSize, maxDataValue, topOffsetPercent, bottomOffset) : [];
   if (gridRows.length) renderGrid(ctx)(chartSize, darkTheme, gridRows);
-  renderLinesChart(ctx, chartSize, chartData, stepX, stepY, scrollOffset, leftSideIndex, rightSideIndex, lineWidth, bottomOffset);
+  renderLinesChart(ctx, chartData, stepX, stepY, scrollOffset, leftSideIndex, rightSideIndex, lineWidth, bottomOffset);
   if (gridRows.length) renderGridValues(ctx)(chartSize, darkTheme, gridRows);
-  if (withTimeline) renderTimeline(ctx)(chartSize, chartData, stepX, stepY, darkTheme, scrollOffset);
+  if (withTimeline) renderTimeline(ctx)(chartData, stepX, stepY, darkTheme, scrollOffset);
   if (withTooltip && chartClick) {
-    renderTooltip(ctx, $tooltipContainer)(chartSize, chartData, darkTheme, chartClick, stepX, stepY, scrollOffset, bottomOffset);
+    renderTooltip(ctx, $tooltipContainer)(chartData, darkTheme, chartClick, stepX, stepY, scrollOffset, bottomOffset);
   }
 };
 
-exports.getChartConfig = (chartSize, chartData, topOffsetPercent = 0, bottomOffset = 0) => {
+exports.getChartConfig = (chartData, topOffsetPercent = 0, bottomOffset = 0) => {
+  const chartSize = chartData.size;
   const yColumns = omitProps(chartData.columns, ['x']);
   const totalLength = chartData.columns.x.data.length - 1;
   const stepX = chartSize.width / ((chartData.slider.right - chartData.slider.left) * totalLength);
