@@ -91,27 +91,28 @@ class Observable {
         if (value === child$.transition.targetValue) return child$.broadcast(setProp(data, child$.transition.value));
         // Stop current transition. Change transition target and start new transition
         cancelAnimationFrame(child$.transition.nextRAF);
-        const frameDiff = (value - child$.transition.value) / steps;
-        const firstValue = child$.transition.value + frameDiff;
-        child$.transition = { value: firstValue, targetValue: value };
-        return transition(firstValue, 1, steps, frameDiff, onFinish)(emitTransition(data));
+        const diff = value - child$.transition.value;
+        const initValue = child$.transition.value;
+        child$.transition = { targetValue: value };
+        return transition(1, steps, initValue, diff, onFinish)(emitTransition(data));
       }
 
       const prevValue = getProp(lastValue);
       if (value === prevValue) return child$.broadcast(data);
-      const frameDiff = (value - prevValue) / steps;
-      const firstValue = prevValue + frameDiff;
-      child$.transition = { value: firstValue, targetValue: value };
-      transition(firstValue, 1, steps, frameDiff, onFinish)(emitTransition(data));
+      const diff = value - prevValue;
+      const initValue = prevValue;
+      child$.transition = { targetValue: value };
+      transition(1, steps, initValue, diff, onFinish)(emitTransition(data));
     });
     return child$;
   }
 }
 
-const transition = (currValue, currStep, stepsLeft, diff, onFinish) => func => {
-  if (stepsLeft <= 0) return onFinish(currValue, currStep);
-  const nextRAF = requestAnimationFrame(() => transition(currValue + diff, currStep + 1, stepsLeft - 1, diff, onFinish)(func));
-  func(currValue, nextRAF, currStep);
+const easeOutQuad = x => x * (2 - x);
+const transition = (currStep, steps, initValue, diff, onFinish) => func => {
+  if (steps - currStep < 0) return onFinish();
+  const nextRAF = requestAnimationFrame(() => transition(currStep + 1, steps, initValue, diff, onFinish)(func));
+  func(initValue + easeOutQuad(currStep / steps) * diff, nextRAF, currStep);
 };
 
 module.exports = Observable;

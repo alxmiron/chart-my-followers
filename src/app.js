@@ -101,7 +101,7 @@ const bootstrap = () => {
   const setStepY = (data, newValue) => ({ ...data, config: { ...data.config, stepY: newValue } });
 
   withBigCanvas((canvas, ctx) => {
-    const chartOptions = { withGrid: true, withTimeline: true, withTooltip: true, lineWidth: 1.4, topOffsetPercent: 0.2, bottomOffset: 20 };
+    const chartOptions = { withGrid: true, withTimeline: true, withTooltip: true, lineWidth: 2, topOffsetPercent: 0.2, bottomOffset: 20 };
     const chartHeight = windowSize => Math.min(windowSize.height /* paddings */ - 10 /* title */ - 34 /* nav */ - 65 /* controls */ - 110 - 15, 600);
     const chartSize$ = getChartSizeObservable(windowSize$, canvas, chartHeight, ratio).withName('chartSize');
 
@@ -128,7 +128,7 @@ const bootstrap = () => {
   });
 
   withNavCanvas((canvas, ctx) => {
-    const chartOptions = { topOffsetPercent: 0.1 };
+    const chartOptions = { lineWidth: 1.4, topOffsetPercent: 0.1 };
     const chartSize$ = getChartSizeObservable(windowSize$, canvas, 60, ratio).withName('chartSize');
 
     const navChartData$ = chartData$

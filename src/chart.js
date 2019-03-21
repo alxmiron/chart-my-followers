@@ -12,7 +12,7 @@ const renderLine = ctx => (x0, y0, x1, y1, { color = '#eaeaea', lineWidth = 1, r
 
 const renderCircle = ctx => (x, y, radius, { color = 'black', lineWidth = 1, ratio = 1, darkTheme } = {}) => {
   ctx.strokeStyle = color;
-  ctx.lineWidth = lineWidth * ratio;
+  ctx.lineWidth = lineWidth * 2 * ratio;
   ctx.fillStyle = darkTheme ? '#242f3e' : 'white';
   ctx.beginPath();
   ctx.arc(x, y, radius * ratio, 0, Math.PI * 2, true);
@@ -171,7 +171,7 @@ const getTooltipPoint = (chartData, chartClick, stepX, stepY, scrollOffset, bott
   return pointData;
 };
 
-const renderTooltip = (ctx, $tooltipContainer) => (chartData, darkTheme, chartClick, stepX, stepY, scrollOffset, bottomOffset = 0) => {
+const renderTooltip = (ctx, $tooltipContainer) => (chartData, darkTheme, chartClick, stepX, stepY, scrollOffset, bottomOffset = 0, lineWidth) => {
   const chartSize = chartData.size;
   const pointData = getTooltipPoint(chartData, chartClick, stepX, stepY, scrollOffset, bottomOffset);
   const points = Object.values(pointData.data);
@@ -183,7 +183,7 @@ const renderTooltip = (ctx, $tooltipContainer) => (chartData, darkTheme, chartCl
     color: darkTheme ? '#3b4a5a' : '#eaeaea',
   });
   Object.values(pointData.data).forEach(column => {
-    renderCircle(ctx)(column.coords.x, column.coords.y, 4, { color: column.color, lineWidth: 3, ratio: chartSize.ratio, darkTheme });
+    renderCircle(ctx)(column.coords.x, column.coords.y, 4, { color: column.color, lineWidth, ratio: chartSize.ratio, darkTheme });
   });
   clearNodeChildren($tooltipContainer);
   const $tooltip = getTooltipNode(pointData);
@@ -207,7 +207,7 @@ exports.renderChart = (canvas, ctx, $tooltipContainer) => (chartData, chartClick
   if (gridRows.length) renderGridValues(ctx)(chartSize, darkTheme, gridRows);
   if (withTimeline) renderTimeline(ctx)(chartData, stepX, stepY, darkTheme, scrollOffset);
   if (withTooltip && chartClick) {
-    renderTooltip(ctx, $tooltipContainer)(chartData, darkTheme, chartClick, stepX, stepY, scrollOffset, bottomOffset);
+    renderTooltip(ctx, $tooltipContainer)(chartData, darkTheme, chartClick, stepX, stepY, scrollOffset, bottomOffset, lineWidth);
   }
 };
 
