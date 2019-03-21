@@ -26,11 +26,11 @@ const updateSwitchesSubscriptions = ($columnSwitches, columnSwitches$) => {
       const $child = $label.childNodes[i];
       if ($child.nodeName === 'INPUT') $input = $child;
     }
-    columnSwitches$.lastValue[$input.name] = $input.checked;
+    columnSwitches$.lastValue[$input.name] = $input.checked ? 1 : 0;
     $input.addEventListener('change', event =>
       columnSwitches$.broadcast({
         ...columnSwitches$.lastValue,
-        [event.target.name]: event.target.checked,
+        [event.target.name]: event.target.checked ? 1 : 0,
       }),
     );
   }

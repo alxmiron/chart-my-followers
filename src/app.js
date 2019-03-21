@@ -74,12 +74,21 @@ const bootstrap = () => {
       updateSwitchesSubscriptions($columnSwitches, columnSwitches$);
     });
 
+  const invertEase = false;
+  const alphaSwitches$ = columnSwitches$
+    .withTransition(data => data.y0, (data, newVal) => ({ ...data, y0: newVal }), { invertEase })
+    .withTransition(data => data.y1, (data, newVal) => ({ ...data, y1: newVal }), { invertEase })
+    .withTransition(data => data.y2, (data, newVal) => ({ ...data, y2: newVal }), { invertEase })
+    .withTransition(data => data.y3, (data, newVal) => ({ ...data, y3: newVal }), { invertEase })
+    .withTransition(data => data.y4, (data, newVal) => ({ ...data, y4: newVal }), { invertEase })
+    .withName('alphaSwitches');
+
   // Chart data (filtered by columns checkboxes)
   const chartData$ = sourceData$
-    .merge([columnSwitches$])
-    .map(({ columnSwitches, sourceData }) => ({
+    .merge([alphaSwitches$])
+    .map(({ alphaSwitches, sourceData }) => ({
       columns: Object.keys(sourceData.case.columns).reduce((acc, colId) => {
-        acc[colId] = { ...sourceData.case.columns[colId], alpha: columnSwitches[colId] ? 1 : 0 };
+        acc[colId] = { ...sourceData.case.columns[colId], alpha: alphaSwitches[colId] };
         return acc;
       }, {}),
       dataIndex: sourceData.index,
@@ -101,6 +110,10 @@ const bootstrap = () => {
   const isDatasetChanged = (chartData, prevChartData) => !prevChartData || prevChartData.dataIndex !== chartData.dataIndex;
   const getStepY = data => data.config.stepY;
   const setStepY = (data, newValue) => ({ ...data, config: { ...data.config, stepY: newValue } });
+  const ignoreStepYif = (data, lastValue) =>
+    Object.values(lastValue.columns)
+      .filter(col => col.id !== 'x')
+      .every(col => col.alpha < 1);
 
   withBigCanvas((canvas, ctx) => {
     const chartOptions = { withGrid: true, withTimeline: true, withTooltip: true, lineWidth: 2, topOffsetPercent: 0.2, bottomOffset: 20 };
@@ -121,7 +134,7 @@ const bootstrap = () => {
         data.config = getChartConfig(data, chartOptions.topOffsetPercent, chartOptions.bottomOffset);
         return data;
       })
-      .withTransition(getStepY, setStepY)
+      .withTransition(getStepY, setStepY, { ignoreIf: ignoreStepYif })
       .withName('chartData');
 
     bigChartData$.merge([chartClick$, darkTheme$]).subscribe(({ chartData, chartClick, darkTheme }) => {
@@ -141,7 +154,7 @@ const bootstrap = () => {
         data.config = getChartConfig(data, chartOptions.topOffsetPercent);
         return data;
       })
-      .withTransition(getStepY, setStepY)
+      .withTransition(getStepY, setStepY, { ignoreIf: ignoreStepYif })
       .withName('chartData');
 
     navChartData$.subscribe(data => {

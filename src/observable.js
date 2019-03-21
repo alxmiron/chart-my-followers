@@ -73,10 +73,12 @@ class Observable {
     });
     return child$;
   }
-  withTransition(getProp, setProp, time = 0.2 /* in sec */) {
+  withTransition(getProp, setProp, { invertEase, ignoreIf = () => false } = {}) {
     const fps = 60;
+    const time = 0.2; /* in sec */
     const steps = fps * time;
     const child$ = new Observable();
+    child$.lastValue = this.lastValue;
     const onFinish = () => (child$.transition = null);
     const emitTransition = data => (value, nextRAF, currStep) => {
       child$.transition.value = value;
@@ -85,7 +87,7 @@ class Observable {
     };
 
     this.subscribe((data, lastValue) => {
-      if (!lastValue || data.datasetChanged || Object.keys(lastValue.columns).length === 1) return child$.broadcast(data);
+      if (!lastValue || data.datasetChanged || ignoreIf(data, lastValue)) return child$.broadcast(data);
       const value = getProp(data);
       if (child$.transition) {
         if (value === child$.transition.targetValue) return child$.broadcast(setProp(data, child$.transition.value));
@@ -94,7 +96,7 @@ class Observable {
         const diff = value - child$.transition.value;
         const initValue = child$.transition.value;
         child$.transition = { targetValue: value };
-        return transition(1, steps, initValue, diff, onFinish)(emitTransition(data));
+        return transition(1, steps, initValue, diff, onFinish, invertEase)(emitTransition(data));
       }
 
       const prevValue = getProp(lastValue);
@@ -102,17 +104,19 @@ class Observable {
       const diff = value - prevValue;
       const initValue = prevValue;
       child$.transition = { targetValue: value };
-      transition(1, steps, initValue, diff, onFinish)(emitTransition(data));
+      transition(1, steps, initValue, diff, onFinish, invertEase)(emitTransition(data));
     });
     return child$;
   }
 }
 
+const easeInQuad = x => x * x;
 const easeOutQuad = x => x * (2 - x);
-const transition = (currStep, steps, initValue, diff, onFinish) => func => {
+const transition = (currStep, steps, initValue, diff, onFinish, invertEase) => func => {
+  const ease = invertEase ? (diff < 0 ? easeOutQuad : easeInQuad) : easeOutQuad;
   if (steps - currStep < 0) return onFinish();
-  const nextRAF = requestAnimationFrame(() => transition(currStep + 1, steps, initValue, diff, onFinish)(func));
-  func(initValue + easeOutQuad(currStep / steps) * diff, nextRAF, currStep);
+  const nextRAF = requestAnimationFrame(() => transition(currStep + 1, steps, initValue, diff, onFinish, invertEase)(func));
+  func(initValue + ease(currStep / steps) * diff, nextRAF, currStep);
 };
 
 module.exports = Observable;

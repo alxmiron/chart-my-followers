@@ -215,7 +215,7 @@ exports.renderChart = (canvas, ctx, $tooltipContainer) => (chartData, chartClick
 
 exports.getChartConfig = (chartData, topOffsetPercent = 0, bottomOffset = 0) => {
   const chartSize = chartData.size;
-  const yColumns = omitProps(chartData.columns, col => col.id === 'x' || col.alpha !== 1);
+  const yColumns = omitProps(chartData.columns, col => col.id === 'x' || col.alpha < 0.5);
   const totalLength = chartData.columns.x.data.length - 1;
   const stepX = chartSize.width / ((chartData.slider.right - chartData.slider.left) * totalLength);
   const totalWidth = totalLength * stepX;
@@ -229,6 +229,6 @@ exports.getChartConfig = (chartData, topOffsetPercent = 0, bottomOffset = 0) => 
       .reduce((acc, arr) => acc.concat(arr), []),
   );
   const availableHeight = chartSize.height * (1 - topOffsetPercent) - bottomOffset * chartSize.ratio;
-  const stepY = availableHeight / maxDataValue;
+  const stepY = Math.min(availableHeight / maxDataValue, availableHeight / 10);
   return { stepX, stepY, maxDataValue, scrollOffset, leftSideIndex, rightSideIndex };
 };
