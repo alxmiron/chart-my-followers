@@ -28,10 +28,11 @@ const formatGridValue = value => {
 
 const renderLinesChart = (ctx, chartData, stepX, stepY, scrollOffset, leftSideIndex, rightSideIndex, lineWidth, bottomOffset) => {
   const chartSize = chartData.size;
-  const yColumns = omitProps(chartData.columns, ['x']);
+  const yColumns = omitProps(chartData.columns, col => col.id === 'x' || col.alpha === 0);
   Object.values(yColumns).forEach(columnData => {
     ctx.strokeStyle = columnData.color.toUpperCase();
     ctx.lineWidth = lineWidth * chartSize.ratio;
+    ctx.globalAlpha = columnData.alpha;
     ctx.beginPath();
     columnData.data.forEach((num, index) => {
       if (index < leftSideIndex - 2 || index > rightSideIndex + 2) return;
@@ -40,6 +41,7 @@ const renderLinesChart = (ctx, chartData, stepX, stepY, scrollOffset, leftSideIn
     });
     ctx.stroke();
   });
+  ctx.globalAlpha = 1;
 };
 
 const renderTimeline = ctx => (chartData, stepX, stepY, darkTheme, scrollOffset, bottomOffset = 4) => {
@@ -151,7 +153,7 @@ const getTooltipPoint = (chartData, chartClick, stepX, stepY, scrollOffset, bott
   const percentage = (scrollOffset + chartClick.x * chartSize.ratio) / totalWidth;
   const targetIndex = Math.round(totalLength * percentage);
   const date = new Date(chartData.columns.x.data[targetIndex]);
-  const yColumns = omitProps(chartData.columns, ['x']);
+  const yColumns = omitProps(chartData.columns, col => col.id === 'x' || col.alpha !== 1);
   const pointData = {
     targetIndex,
     date,
@@ -213,7 +215,7 @@ exports.renderChart = (canvas, ctx, $tooltipContainer) => (chartData, chartClick
 
 exports.getChartConfig = (chartData, topOffsetPercent = 0, bottomOffset = 0) => {
   const chartSize = chartData.size;
-  const yColumns = omitProps(chartData.columns, ['x']);
+  const yColumns = omitProps(chartData.columns, col => col.id === 'x' || col.alpha !== 1);
   const totalLength = chartData.columns.x.data.length - 1;
   const stepX = chartSize.width / ((chartData.slider.right - chartData.slider.left) * totalLength);
   const totalWidth = totalLength * stepX;

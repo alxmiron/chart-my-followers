@@ -30,7 +30,7 @@ exports.clearNodeChildren = $node => {
 
 exports.omitProps = (object, propNames) => {
   return Object.keys(object).reduce((acc, key) => {
-    if (propNames.includes(key)) return acc;
+    if (typeof propNames === 'function' ? propNames(object[key]) : propNames.includes(key)) return acc;
     acc[key] = object[key];
     return acc;
   }, {});

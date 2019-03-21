@@ -3,7 +3,7 @@ const Observable = require('./observable');
 const getChartSizeObservable = require('./chartSize').f;
 const { renderChart, getChartConfig } = require('./chart');
 const { renderDataSelect, getSwitchesObservable, renderColumnControls, updateSwitchesSubscriptions } = require('./controls');
-const { getDeviceRatio, omitProps, updateThemeButton } = require('./utils');
+const { getDeviceRatio, updateThemeButton } = require('./utils');
 
 const bootstrap = () => {
   const formatChartData = dataset => {
@@ -75,11 +75,13 @@ const bootstrap = () => {
     });
 
   // Chart data (filtered by columns checkboxes)
-  const getSwitchesValues = columnSwitches => Object.keys(columnSwitches).filter(colId => !columnSwitches[colId]);
   const chartData$ = sourceData$
     .merge([columnSwitches$])
     .map(({ columnSwitches, sourceData }) => ({
-      columns: omitProps(sourceData.case.columns, getSwitchesValues(columnSwitches)),
+      columns: Object.keys(sourceData.case.columns).reduce((acc, colId) => {
+        acc[colId] = { ...sourceData.case.columns[colId], alpha: columnSwitches[colId] ? 1 : 0 };
+        return acc;
+      }, {}),
       dataIndex: sourceData.index,
       slider: { left: 0, right: 1 },
     }))
