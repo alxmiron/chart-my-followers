@@ -86,7 +86,7 @@ const getGridRows = (chartSize, maxDataValue, topOffsetPercent = 0, bottomOffset
   const rowsAmount = 6;
   const gridRows = Array(rowsAmount)
     .fill(1)
-    .map((val, idx) => Math.round((idx * maxDataValue) / rowsAmount))
+    .map((value, idx) => Math.round((idx * maxDataValue) / rowsAmount))
     .map((value, idx, arr) => {
       const interval = (chartSize.height * (1 - topOffsetPercent) - bottomOffset * chartSize.ratio) / arr.length;
       const level = chartSize.height - bottomOffset * chartSize.ratio - interval * idx;
@@ -221,6 +221,7 @@ exports.getChartConfig = (chartData, topOffsetPercent = 0, bottomOffset = 0) => 
   const leftSideIndex = Math.round(chartData.columns.x.data.length * chartData.slider.left);
   const rightSideIndex = Math.round(chartData.columns.x.data.length * chartData.slider.right) - 1;
   const maxDataValue = Math.max(
+    0,
     ...Object.values(yColumns)
       .map(col => col.data.slice(leftSideIndex, rightSideIndex + 1))
       .reduce((acc, arr) => acc.concat(arr), []),

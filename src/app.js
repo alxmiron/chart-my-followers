@@ -19,7 +19,7 @@ const bootstrap = () => {
         };
         return acc;
       }, {});
-      return { columns, slider: { left: 0, right: 1 } };
+      return { columns };
     });
   };
 
@@ -67,19 +67,21 @@ const bootstrap = () => {
   // Dataset case (filtered by dataSelect)
   const sourceData$ = dataset$
     .merge([dataSelect$.withName('dataSelect')])
-    .map(({ dataset, dataSelect }) => dataset[dataSelect])
+    .map(({ dataset, dataSelect }) => ({ case: dataset[dataSelect], index: dataSelect }))
     .withName('sourceData')
     .subscribe(sourceData => {
-      renderColumnControls($columnSwitches, sourceData);
+      renderColumnControls($columnSwitches, sourceData.case);
       updateSwitchesSubscriptions($columnSwitches, columnSwitches$);
     });
 
   // Chart data (filtered by columns checkboxes)
+  const getSwitchesValues = columnSwitches => Object.keys(columnSwitches).filter(colId => !columnSwitches[colId]);
   const chartData$ = sourceData$
     .merge([columnSwitches$])
     .map(({ columnSwitches, sourceData }) => ({
-      ...sourceData,
-      columns: omitProps(sourceData.columns, Object.keys(columnSwitches).filter(colId => !columnSwitches[colId])),
+      columns: omitProps(sourceData.case.columns, getSwitchesValues(columnSwitches)),
+      dataIndex: sourceData.index,
+      slider: { left: 0, right: 1 },
     }))
     .withName('chartData');
 
@@ -94,6 +96,9 @@ const bootstrap = () => {
 
   const withBigCanvas = fn => fn(bigCanvas, bigCtx);
   const withNavCanvas = fn => fn(navCanvas, navCtx);
+  const isDatasetChanged = (chartData, prevChartData) => !prevChartData || prevChartData.dataIndex !== chartData.dataIndex;
+  const getStepY = data => data.config.stepY;
+  const setStepY = (data, newValue) => ({ ...data, config: { ...data.config, stepY: newValue } });
 
   withBigCanvas((canvas, ctx) => {
     const chartOptions = { withGrid: true, withTimeline: true, withTooltip: true, lineWidth: 1.4, topOffsetPercent: 0.2, bottomOffset: 20 };
@@ -108,19 +113,14 @@ const bootstrap = () => {
 
     const bigChartData$ = chartData$
       .merge([slider$, chartSize$])
-      .map(({ chartData, chartSize, slider }) => {
+      .map(({ chartData, chartSize, slider }, prev) => {
         const data = { ...chartData, size: chartSize, slider };
+        data.datasetChanged = isDatasetChanged(chartData, prev && prev.chartData);
         data.config = getChartConfig(data, chartOptions.topOffsetPercent, chartOptions.bottomOffset);
         return data;
       })
+      .withTransition(getStepY, setStepY)
       .withName('chartData');
-
-    // const chartConfig$ = bigChartData$
-    //   .merge([chartSize$])
-    //   .map(({ chartSize, chartData }) => getChartConfig(chartSize, chartData, chartOptions.topOffsetPercent, chartOptions.bottomOffset))
-    //   // .withTransition(0.2, 'stepY')
-    //   .withName('chartConfig')
-    //   .subscribe(console.log);
 
     bigChartData$.merge([chartClick$, darkTheme$]).subscribe(({ chartData, chartClick, darkTheme }) => {
       renderChart(canvas, ctx, $tooltipContainer)(chartData, chartClick, darkTheme, chartOptions);
@@ -131,9 +131,18 @@ const bootstrap = () => {
     const chartOptions = { topOffsetPercent: 0.1 };
     const chartSize$ = getChartSizeObservable(windowSize$, canvas, 60, ratio).withName('chartSize');
 
-    chartData$.merge([chartSize$]).subscribe(({ chartSize, chartData }) => {
-      const data = { ...chartData, size: chartSize };
-      data.config = getChartConfig(data, chartOptions.topOffsetPercent);
+    const navChartData$ = chartData$
+      .merge([chartSize$])
+      .map(({ chartData, chartSize }, prev) => {
+        const data = { ...chartData, size: chartSize };
+        data.datasetChanged = isDatasetChanged(chartData, prev && prev.chartData);
+        data.config = getChartConfig(data, chartOptions.topOffsetPercent);
+        return data;
+      })
+      .withTransition(getStepY, setStepY)
+      .withName('chartData');
+
+    navChartData$.subscribe(data => {
       renderChart(canvas, ctx, $tooltipContainer)(data, null, false, chartOptions);
     });
   });

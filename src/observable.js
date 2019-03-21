@@ -73,36 +73,45 @@ class Observable {
     });
     return child$;
   }
-  extend(createChild) {
-    const child$ = new Observable();
-    this.subscribe(data => {
-      child$.broadcast(data);
-    });
-  }
-  withTransition(time /* in sec */, propName) {
+  withTransition(getProp, setProp, time = 0.2 /* in sec */) {
     const fps = 60;
+    const steps = fps * time;
     const child$ = new Observable();
-    this.subscribe(data => {
-      if (!this.lastValue) return child$.broadcast(data);
-      const value = data[propName];
-      const prevValue = this.lastValue[propName];
+    const onFinish = () => (child$.transition = null);
+    const emitTransition = data => (value, nextRAF, currStep) => {
+      child$.transition.value = value;
+      child$.transition.nextRAF = nextRAF;
+      child$.broadcast(setProp(currStep === 1 ? data : child$.lastValue, value));
+    };
+
+    this.subscribe((data, lastValue) => {
+      if (!lastValue || data.datasetChanged || Object.keys(lastValue.columns).length === 1) return child$.broadcast(data);
+      const value = getProp(data);
+      if (child$.transition) {
+        if (value === child$.transition.targetValue) return child$.broadcast(setProp(data, child$.transition.value));
+        // Stop current transition. Change transition target and start new transition
+        cancelAnimationFrame(child$.transition.nextRAF);
+        const frameDiff = (value - child$.transition.value) / steps;
+        const firstValue = child$.transition.value + frameDiff;
+        child$.transition = { value: firstValue, targetValue: value };
+        return transition(firstValue, 1, steps, frameDiff, onFinish)(emitTransition(data));
+      }
+
+      const prevValue = getProp(lastValue);
       if (value === prevValue) return child$.broadcast(data);
-      if (child$.inTransition) return console.log('another transition');
-      const steps = fps * time;
       const frameDiff = (value - prevValue) / steps;
-      child$.inTransition = true;
-      const emitTransition = value => child$.broadcast({ ...this.lastValue, [propName]: value }, this.lastValue);
-      const onFinish = () => (child$.inTransition = false);
-      transition(prevValue, steps, frameDiff, onFinish)(emitTransition);
+      const firstValue = prevValue + frameDiff;
+      child$.transition = { value: firstValue, targetValue: value };
+      transition(firstValue, 1, steps, frameDiff, onFinish)(emitTransition(data));
     });
     return child$;
   }
 }
 
-const transition = (currValue, stepsLeft, diff, onFinish) => func => {
-  if (stepsLeft <= 0) return onFinish(currValue);
-  func(currValue);
-  requestAnimationFrame(() => transition(currValue + diff, stepsLeft - 1, diff, onFinish)(func));
+const transition = (currValue, currStep, stepsLeft, diff, onFinish) => func => {
+  if (stepsLeft <= 0) return onFinish(currValue, currStep);
+  const nextRAF = requestAnimationFrame(() => transition(currValue + diff, currStep + 1, stepsLeft - 1, diff, onFinish)(func));
+  func(currValue, nextRAF, currStep);
 };
 
 module.exports = Observable;
