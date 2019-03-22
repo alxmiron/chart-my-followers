@@ -95,6 +95,55 @@ const bootstrap = () => {
   const isDatasetChanged = (chartData, prevChartData) => !prevChartData || prevChartData.dataIndex !== chartData.dataIndex;
   const getStepY = data => data.config.stepY;
   const setStepY = (data, newValue) => ({ ...data, config: { ...data.config, stepY: newValue } });
+  const getZoom = (newStepY, initStepY, targetStepY) => {
+    const ifZoomIn = targetStepY - newStepY > 0;
+    const zoomFinal = targetStepY / initStepY - 1; // from -n to +n
+    const resizing = Math.abs(zoomFinal) > 0.02; // Ignore very small stepY changes
+    if (!resizing) return { resizing };
+    const zoomInStage = (newStepY - initStepY) / (targetStepY - initStepY); // from 0 to 1
+    const zoomOutStage = (targetStepY - newStepY) / (targetStepY - initStepY); // from 1 to 0
+    const zoomTop = (ifZoomIn ? zoomInStage : -zoomOutStage) * zoomFinal;
+    const zoomBottom = (ifZoomIn ? zoomOutStage : -zoomInStage) * -zoomFinal;
+    const alphaTop = ifZoomIn ? zoomOutStage : zoomInStage;
+    const alphaBottom = ifZoomIn ? zoomInStage : zoomOutStage;
+    return { resizing, ifZoomIn, zoomTop, zoomBottom, alphaTop, alphaBottom };
+  };
+  const setStepYAndGrid = (data, newStepY, initStepY, targetStepY, prevData) => {
+    const { resizing, ifZoomIn, zoomTop, zoomBottom, alphaTop, alphaBottom } = getZoom(newStepY, initStepY, targetStepY);
+    const gridRows = data.gridRows.reduce((acc, row, index) => {
+      if (row.value === 0) return acc.concat([{ ...row, alpha: 1 }]); // Dont zoom 0 grid level
+      if (resizing) {
+        if (Array.isArray(row)) {
+          // Continue grid zooming
+          const origLevel = row[0].origLevel ? row[0].origLevel : row[0].level;
+          acc.push([
+            { ...row[0], origLevel, level: origLevel * (1 + zoomTop), alpha: alphaTop },
+            { ...row[1], origLevel, level: origLevel * (1 + zoomBottom), alpha: alphaBottom },
+          ]);
+        } else {
+          // Start grid zooming
+          const origLevel = row.level;
+          const rowTop = ifZoomIn ? prevData.gridRows[index] : row;
+          const rowBottom = ifZoomIn ? row : prevData.gridRows[index];
+          acc.push([
+            { ...rowTop, origLevel, level: origLevel * (1 + zoomTop), alpha: alphaTop },
+            { ...rowBottom, origLevel, level: origLevel * (1 + zoomBottom), alpha: alphaBottom },
+          ]);
+        }
+      } else {
+        // Stop grid zooming
+        if (Array.isArray(row)) {
+          const origLevel = row[0].origLevel;
+          const nextIndex = Math.abs(origLevel - row[0].level) < Math.abs(origLevel - row[1].level) ? 0 : 1;
+          acc.push({ ...row[nextIndex], origLevel: null, level: origLevel, alpha: 1 });
+        } else {
+          acc.push({ ...row, origLevel: null, level: row.origLevel || row.level, alpha: 1 });
+        }
+      }
+      return acc;
+    }, []);
+    return { ...data, config: { ...data.config, stepY: newStepY }, gridRows };
+  };
   const ignoreStepYif = (data, lastValue) =>
     Object.values(lastValue.columns)
       .filter(col => col.id !== 'x')
@@ -117,13 +166,10 @@ const bootstrap = () => {
         const data = { ...chartData, size: chartSize, slider };
         data.datasetChanged = isDatasetChanged(chartData, prev && prev.chartData);
         data.config = getChartConfig(data, chartOptions.topOffsetPercent, chartOptions.bottomOffset);
+        data.gridRows = getGridRows(data, chartOptions.topOffsetPercent, chartOptions.bottomOffset);
         return data;
       })
-      .withTransition(getStepY, setStepY, { ignoreIf: ignoreStepYif })
-      .map(chartData => {
-        chartData.gridRows = getGridRows(chartData, chartOptions.topOffsetPercent, chartOptions.bottomOffset);
-        return chartData;
-      })
+      .withTransition(getStepY, setStepYAndGrid, { ignoreIf: ignoreStepYif })
       .withName('chartData');
 
     bigChartData$.merge([chartClick$, darkTheme$]).subscribe(({ chartData, chartClick, darkTheme }) => {

@@ -80,31 +80,34 @@ class Observable {
     const child$ = new Observable();
     child$.lastValue = this.lastValue;
     const onFinish = () => (child$.transition = null);
-    const emitTransition = data => (value, nextRAF, currStep) => {
-      child$.transition.value = value;
-      child$.transition.nextRAF = nextRAF;
-      child$.broadcast(setProp(currStep === 1 ? data : child$.lastValue, value));
+    const emitTransition = (data, lastValue) => (value, nextRAF, currStep) => {
+      const tr = child$.transition;
+      tr.value = value;
+      tr.nextRAF = nextRAF;
+      const baseData = currStep === 1 ? data : child$.lastValue;
+      child$.broadcast(setProp(baseData, value, tr.initValue, tr.targetValue, lastValue));
     };
 
     this.subscribe((data, lastValue) => {
       if (!lastValue || data.datasetChanged || ignoreIf(data, lastValue)) return child$.broadcast(data);
       const value = getProp(data);
-      if (child$.transition) {
-        if (value === child$.transition.targetValue) return child$.broadcast(setProp(data, child$.transition.value));
+      const tr = child$.transition;
+      if (tr) {
+        if (value === tr.targetValue) return child$.broadcast(setProp(data, tr.value, tr.initValue, tr.targetValue, lastValue));
         // Stop current transition. Change transition target and start new transition
-        cancelAnimationFrame(child$.transition.nextRAF);
-        const diff = value - child$.transition.value;
-        const initValue = child$.transition.value;
-        child$.transition = { targetValue: value };
-        return transition(1, steps, initValue, diff, onFinish, invertEase)(emitTransition(data));
+        cancelAnimationFrame(tr.nextRAF);
+        const diff = value - tr.value;
+        const initValue = tr.value;
+        child$.transition = { initValue, targetValue: value };
+        return transition(1, steps, initValue, diff, onFinish, invertEase)(emitTransition(data, lastValue));
       }
 
       const prevValue = getProp(lastValue);
       if (value === prevValue) return child$.broadcast(data);
       const diff = value - prevValue;
       const initValue = prevValue;
-      child$.transition = { targetValue: value };
-      transition(1, steps, initValue, diff, onFinish, invertEase)(emitTransition(data));
+      child$.transition = { initValue, targetValue: value };
+      transition(1, steps, initValue, diff, onFinish, invertEase)(emitTransition(data, lastValue));
     });
     return child$;
   }

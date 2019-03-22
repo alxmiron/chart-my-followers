@@ -83,18 +83,35 @@ const renderTimeline = ctx => (chartData, stepX, stepY, darkTheme, scrollOffset,
   ctx.globalAlpha = 1;
 };
 
-const renderGrid = ctx => (chartSize, darkTheme, gridRows) => {
-  gridRows.forEach(row => {
-    renderLine(ctx)(0, row.level, chartSize.width, row.level, { ratio: chartSize.ratio, color: darkTheme ? '#313d4d' : '#eaeaea' });
-  });
+const renderGridLine = ctx => (chartSize, darkTheme, gridRow, bottomOffset) => {
+  ctx.globalAlpha = gridRow.alpha;
+  const options = { ratio: chartSize.ratio, color: darkTheme ? '#313d4d' : '#eaeaea' };
+  const y = chartSize.height - bottomOffset * chartSize.ratio - gridRow.level;
+  renderLine(ctx)(0, y, chartSize.width, y, options);
 };
 
-const renderGridValues = ctx => (chartSize, darkTheme, gridRows) => {
-  gridRows.forEach(row => {
-    ctx.font = `lighter ${12 * chartSize.ratio}px sans-serif`;
-    ctx.fillStyle = darkTheme ? '#546778' : '#a5a5a5';
-    ctx.fillText(row.label, 0, row.level - 5 * chartSize.ratio);
+const renderGrid = ctx => (chartSize, darkTheme, gridRows, bottomOffset) => {
+  gridRows.forEach(gridRow => {
+    const rows = Array.isArray(gridRow) ? gridRow : [gridRow];
+    rows.forEach(row => renderGridLine(ctx)(chartSize, darkTheme, row, bottomOffset));
   });
+  ctx.globalAlpha = 1;
+};
+
+const renderGridValue = ctx => (chartSize, darkTheme, gridRow, bottomOffset) => {
+  ctx.globalAlpha = gridRow.alpha;
+  ctx.font = `lighter ${12 * chartSize.ratio}px sans-serif`;
+  ctx.fillStyle = darkTheme ? '#546778' : '#a5a5a5';
+  const y = chartSize.height - bottomOffset * chartSize.ratio - gridRow.level - 5 * chartSize.ratio;
+  ctx.fillText(gridRow.label, 0, y);
+};
+
+const renderGridValues = ctx => (chartSize, darkTheme, gridRows, bottomOffset) => {
+  gridRows.forEach(gridRow => {
+    const rows = Array.isArray(gridRow) ? gridRow : [gridRow];
+    rows.forEach(row => renderGridValue(ctx)(chartSize, darkTheme, row, bottomOffset));
+  });
+  ctx.globalAlpha = 1;
 };
 
 const clearChart = (canvas, ctx) => () => ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -190,9 +207,9 @@ exports.renderChart = (canvas, ctx, $tooltipContainer) => (chartData, chartClick
   const { stepX, stepY, scrollOffset, leftSideIndex, rightSideIndex } = chartData.config;
   clearChart(canvas, ctx)();
   clearNodeChildren($tooltipContainer);
-  if (gridRows.length) renderGrid(ctx)(chartSize, darkTheme, gridRows);
+  if (gridRows.length) renderGrid(ctx)(chartSize, darkTheme, gridRows, bottomOffset);
   renderLinesChart(ctx, chartData, stepX, stepY, scrollOffset, leftSideIndex, rightSideIndex, lineWidth, bottomOffset);
-  if (gridRows.length) renderGridValues(ctx)(chartSize, darkTheme, gridRows);
+  if (gridRows.length) renderGridValues(ctx)(chartSize, darkTheme, gridRows, bottomOffset);
   if (withTimeline) renderTimeline(ctx)(chartData, stepX, stepY, darkTheme, scrollOffset);
   if (withTooltip && chartClick) {
     renderTooltip(ctx, $tooltipContainer)(chartData, darkTheme, chartClick, stepX, stepY, scrollOffset, bottomOffset, lineWidth);
@@ -228,7 +245,7 @@ exports.getGridRows = (chartData, topOffsetPercent = 0, bottomOffset = 0) => {
     .map((v, idx) => {
       const value = Math.round((idx * chartData.config.maxDataValue) / rowsAmount);
       const interval = (chartSize.height * (1 - topOffsetPercent) - bottomOffset * chartSize.ratio) / rowsAmount;
-      const level = chartSize.height - bottomOffset * chartSize.ratio - interval * idx;
+      const level = interval * idx;
       return { value, level, label: formatGridValue(value) };
     });
   return gridRows;
