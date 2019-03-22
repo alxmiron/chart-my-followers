@@ -3,9 +3,6 @@
   "version": "1.0.0",
   "description": "Mini chart application",
   "author": "Alexey Mironenko",
-  "engines": {
-    "node": "^8.0.0"
-  },
   "license": "UNLICENSED",
   "scripts": {
     "start": "grunt",
