@@ -1,9 +1,8 @@
 const Observable = require('./observable');
 
 exports.f = () => {
-  const rangeSlider = sliderFactory();
   const sliderNode = document.getElementById('navigation-handler');
-  rangeSlider.create(sliderNode);
+  sliderFactory()(sliderNode);
   const slider$ = new Observable('slider');
   sliderNode.sliderApi.on('update', data => slider$.broadcast(data));
   const detectedSlider$ = slider$
@@ -21,25 +20,21 @@ exports.f = () => {
   return detectedSlider$;
 };
 
-function sliderFactory() {
-  const isSet = value => value !== null && value !== undefined;
+const sliderFactory = () => {
   const closest = (value, to) => Math.round(value / to) * to;
   const limit = a => Math.max(Math.min(a, 100), 0);
   const asArray = a => (Array.isArray(a) ? a : [a]);
   const addClass = (el, className) => el.classList.add(className);
   const removeClass = (el, className) => el.classList.remove(className);
-  const hasClass = (el, className) => el.classList.contains(className);
-
-  function getPageOffset(doc) {
+  const getPageOffset = doc => {
     const supportPageOffset = window.pageXOffset !== undefined;
     const isCSS1Compat = (doc.compatMode || '') === 'CSS1Compat';
     const x = supportPageOffset ? window.pageXOffset : isCSS1Compat ? doc.documentElement.scrollLeft : doc.body.scrollLeft;
     const y = supportPageOffset ? window.pageYOffset : isCSS1Compat ? doc.documentElement.scrollTop : doc.body.scrollTop;
     return { x, y };
-  }
-
-  function getActions() {
-    return window.navigator.pointerEnabled
+  };
+  const getActions = () =>
+    window.navigator.pointerEnabled
       ? {
           start: 'pointerdown',
           move: 'pointermove',
@@ -56,22 +51,19 @@ function sliderFactory() {
           move: 'mousemove touchmove',
           end: 'mouseup touchend',
         };
-  }
-
-  function getSupportsPassive() {
+  const getSupportsPassive = () => {
     let supportsPassive = false;
     try {
       const opts = Object.defineProperty({}, 'passive', {
         // eslint-disable-next-line
-        get: function() {
+        get() {
           supportsPassive = true;
         },
       });
       window.addEventListener('test', null, opts);
     } catch (e) {} // eslint-disable-line
     return supportsPassive;
-  }
-
+  };
   const getSupportsTouchActionNone = () => window.CSS && CSS.supports && CSS.supports('touch-action', 'none');
   const subRangeRatio = (pa, pb) => 100 / (pb - pa);
   const fromPercentage = (range, value) => (value * 100) / (range[1] - range[0]);
@@ -82,8 +74,7 @@ function sliderFactory() {
     while (value >= arr[j]) j += 1;
     return j;
   };
-
-  function toStepping(xVal, xPct, value) {
+  const toStepping = (xVal, xPct, value) => {
     if (value >= xVal.slice(-1)[0]) return 100;
     const j = getJ(value, xVal);
     const va = xVal[j - 1];
@@ -91,9 +82,8 @@ function sliderFactory() {
     const pa = xPct[j - 1];
     const pb = xPct[j];
     return pa + toPercentage([va, vb], value) / subRangeRatio(pa, pb);
-  }
-
-  function fromStepping(xVal, xPct, value) {
+  };
+  const fromStepping = (xVal, xPct, value) => {
     if (value >= 100) return xVal.slice(-1)[0];
     const j = getJ(value, xPct);
     const va = xVal[j - 1];
@@ -101,16 +91,14 @@ function sliderFactory() {
     const pa = xPct[j - 1];
     const pb = xPct[j];
     return isPercentage([va, vb], (value - pa) * subRangeRatio(pa, pb));
-  }
-
-  function getStep(xPct, xSteps, value) {
+  };
+  const getStep = (xPct, xSteps, value) => {
     if (value === 100) return value;
     const j = getJ(value, xPct);
     if (!xSteps[j - 1]) return value;
     return xPct[j - 1] + closest(value - xPct[j - 1], xSteps[j - 1]);
-  }
-
-  function handleEntryPoint(index, value, that) {
+  };
+  const handleEntryPoint = (index, value, that) => {
     let percentage;
     if (typeof value === 'number') value = [value];
     if (index === 'min') {
@@ -128,9 +116,8 @@ function sliderFactory() {
       that.xSteps.push(isNaN(value[1]) ? false : value[1]);
     }
     that.xHighestCompleteStep.push(0);
-  }
-
-  function handleStepPoint(i, n, that) {
+  };
+  const handleStepPoint = (i, n, that) => {
     if (!n) return;
     if (that.xVal[i] === that.xVal[i + 1]) {
       that.xSteps[i] = that.xHighestCompleteStep[i] = that.xVal[i];
@@ -141,142 +128,77 @@ function sliderFactory() {
     const highestStep = Math.ceil(Number(totalSteps.toFixed(3)) - 1);
     const step = that.xVal[i] + that.xNumSteps[i] * highestStep;
     that.xHighestCompleteStep[i] = step;
+  };
+
+  class Spectrum {
+    constructor(entry, snap, singleStep) {
+      this.xPct = [];
+      this.xVal = [];
+      this.xSteps = [singleStep || false];
+      this.xNumSteps = [false];
+      this.xHighestCompleteStep = [];
+      const ordered = [];
+      let index;
+      for (index in entry) {
+        if (entry.hasOwnProperty(index)) ordered.push([entry[index], index]);
+      }
+      if (ordered.length && typeof ordered[0][0] === 'object') {
+        ordered.sort((a, b) => a[0][0] - b[0][0]);
+      } else {
+        ordered.sort((a, b) => a[0] - b[0]);
+      }
+      for (index = 0; index < ordered.length; index++) {
+        handleEntryPoint(ordered[index][1], ordered[index][0], this);
+      }
+      this.xNumSteps = this.xSteps.slice(0);
+      for (index = 0; index < this.xNumSteps.length; index++) {
+        handleStepPoint(index, this.xNumSteps[index], this);
+      }
+    }
+    getMargin(value) {
+      return this.xPct.length === 2 ? fromPercentage(this.xVal, value) : false;
+    }
+    toStepping(value) {
+      value = toStepping(this.xVal, this.xPct, value);
+      return value;
+    }
+    fromStepping(value) {
+      return fromStepping(this.xVal, this.xPct, value);
+    }
+    getStep(value) {
+      value = getStep(this.xPct, this.xSteps, value);
+      return value;
+    }
   }
 
-  function Spectrum(entry, snap, singleStep) {
-    this.xPct = [];
-    this.xVal = [];
-    this.xSteps = [singleStep || false];
-    this.xNumSteps = [false];
-    this.xHighestCompleteStep = [];
-    const ordered = [];
-    let index;
-    for (index in entry) {
-      if (entry.hasOwnProperty(index)) ordered.push([entry[index], index]);
-    }
-    if (ordered.length && typeof ordered[0][0] === 'object') {
-      ordered.sort((a, b) => a[0][0] - b[0][0]);
-    } else {
-      ordered.sort((a, b) => a[0] - b[0]);
-    }
-    for (index = 0; index < ordered.length; index++) {
-      handleEntryPoint(ordered[index][1], ordered[index][0], this);
-    }
-    this.xNumSteps = this.xSteps.slice(0);
-    for (index = 0; index < this.xNumSteps.length; index++) {
-      handleStepPoint(index, this.xNumSteps[index], this);
-    }
-  }
-
-  Spectrum.prototype.getMargin = function(value) {
-    return this.xPct.length === 2 ? fromPercentage(this.xVal, value) : false;
-  };
-
-  Spectrum.prototype.toStepping = function(value) {
-    value = toStepping(this.xVal, this.xPct, value);
-    return value;
-  };
-
-  Spectrum.prototype.fromStepping = function(value) {
-    return fromStepping(this.xVal, this.xPct, value);
-  };
-
-  Spectrum.prototype.getStep = function(value) {
-    value = getStep(this.xPct, this.xSteps, value);
-    return value;
-  };
-
-  const defaultFormatter = {
-    to: value => value !== undefined && value.toFixed(2),
-    from: Number,
-  };
-
-  const testRange = (parsed, entry) => {
-    parsed.spectrum = new Spectrum(entry, parsed.snap, parsed.singleStep);
-  };
-  const testStart = (parsed, entry) => {
-    entry = asArray(entry);
-    parsed.handles = entry.length;
-    parsed.start = entry;
-  };
-  const testConnect = (parsed, entry) => {
-    parsed.connect = entry;
-  };
-  const testMargin = (parsed, entry) => {
-    parsed.margin = parsed.spectrum.getMargin(entry);
-  };
-  const testFormat = (parsed, entry) => {
-    parsed.format = entry;
-  };
-  const testCssPrefix = (parsed, entry) => {
-    parsed.cssPrefix = entry;
-  };
-
-  const testCssClasses = (parsed, entry) => {
-    parsed.cssClasses = {};
-    for (let key in entry) {
-      if (!entry.hasOwnProperty(key)) continue;
-      parsed.cssClasses[key] = parsed.cssPrefix + entry[key];
-    }
-  };
-
-  const testOptions = (options = {}) => {
-    const parsed = {
-      margin: 0,
-      format: defaultFormatter,
-      events: { drag: true },
-      ort: 0,
-      dir: 0,
-    };
-    const tests = {
-      start: { r: true, t: testStart },
-      connect: { r: true, t: testConnect },
-      range: { r: true, t: testRange },
-      margin: { r: false, t: testMargin },
-      format: { r: false, t: testFormat },
-      cssPrefix: { r: true, t: testCssPrefix },
-      cssClasses: { r: true, t: testCssClasses },
-    };
+  const testOptions = () => {
     const defaults = {
-      connect: [true, true, true],
-      direction: 'ltr',
-      behaviour: 'drag',
-      cssPrefix: 'slider-',
-      margin: 100,
-      range: { min: 0, max: 1000 },
       start: [600, 850],
-      cssClasses: {
-        target: 'target',
-        base: 'base',
-        origin: 'origin',
-        handle: 'handle',
-        handleLower: 'handle-lower',
-        handleUpper: 'handle-upper',
-        touchArea: 'touch-area',
-        horizontal: 'horizontal',
-        connect: 'connect',
-        connects: 'connects',
-        ltr: 'ltr',
-        draggable: 'draggable',
-        drag: 'state-drag',
-        tap: 'state-tap',
-        active: 'active',
-      },
+      connect: [true, true, true],
+      range: { min: 0, max: 1000 },
+      margin: 100,
     };
-    Object.keys(tests).forEach(function(name) {
-      if (!isSet(options[name]) && defaults[name] === undefined) return true;
-      tests[name].t(parsed, !isSet(options[name]) ? defaults[name] : options[name]);
-    });
+    const spectrum = new Spectrum(defaults.range);
+    const parsed = {
+      format: { to: value => value !== undefined && value.toFixed(2), from: Number },
+      events: { drag: true },
+      dir: 0,
+      start: asArray(defaults.start),
+      handles: asArray(defaults.start).length,
+      connect: defaults.connect,
+      spectrum,
+      margin: spectrum.getMargin(defaults.margin),
+    };
     const d = document.createElement('div');
     const msPrefix = d.style.msTransform !== undefined;
     const noPrefix = d.style.transform !== undefined;
     parsed.transformRule = noPrefix ? 'transform' : msPrefix ? 'msTransform' : 'webkitTransform';
     const styles = [['left', 'top'], ['right', 'bottom']];
-    parsed.style = styles[parsed.dir][parsed.ort];
+    parsed.style = styles[parsed.dir][0];
     return parsed;
   };
 
-  function scope(target, options, originalOptions) {
+  const scope = (target, options, originalOptions) => {
     let actions = getActions();
     let supportsTouchActionNone = getSupportsTouchActionNone();
     let supportsPassive = supportsTouchActionNone && getSupportsPassive();
@@ -294,7 +216,6 @@ function sliderFactory() {
     let scope_Document = target.ownerDocument;
     let scope_DocumentElement = options.documentElement || scope_Document.documentElement;
     let scope_Body = scope_Document.body;
-    let scope_DirOffset = scope_Document.dir === 'rtl' || options.ort === 1 ? 0 : 100;
 
     const addNodeTo = (addTarget, className) => {
       const div = scope_Document.createElement('div');
@@ -304,24 +225,24 @@ function sliderFactory() {
     };
 
     const addOrigin = (base, handleNumber) => {
-      const origin = addNodeTo(base, options.cssClasses.origin);
-      const handle = addNodeTo(origin, options.cssClasses.handle);
-      addNodeTo(handle, options.cssClasses.touchArea);
+      const origin = addNodeTo(base, 'slider-origin');
+      const handle = addNodeTo(origin, 'slider-handle');
+      addNodeTo(handle, 'slider-touch-area');
       handle.setAttribute('data-handle', handleNumber);
       handle.setAttribute('role', 'slider');
       handle.setAttribute('aria-orientation', 'horizontal');
       if (handleNumber === 0) {
-        addClass(handle, options.cssClasses.handleLower);
+        addClass(handle, 'slider-handle-lower');
       } else if (handleNumber === options.handles - 1) {
-        addClass(handle, options.cssClasses.handleUpper);
+        addClass(handle, 'slider-handle-upper');
       }
       return origin;
     };
 
-    const addConnect = (base, add) => (add ? addNodeTo(base, options.cssClasses.connect) : false);
+    const addConnect = (base, add) => (add ? addNodeTo(base, 'slider-connect') : false);
 
     const addElements = (connectOptions, base) => {
-      const connectBase = addNodeTo(base, options.cssClasses.connects);
+      const connectBase = addNodeTo(base, 'slider-connects');
       scope_Handles = [];
       scope_Connects = [];
       scope_Connects.push(addConnect(connectBase, connectOptions[0]));
@@ -333,38 +254,35 @@ function sliderFactory() {
     };
 
     const addSlider = addTarget => {
-      addClass(addTarget, options.cssClasses.target);
-      addClass(addTarget, options.cssClasses.ltr);
-      addClass(addTarget, options.cssClasses.horizontal);
-      return addNodeTo(addTarget, options.cssClasses.base);
+      addClass(addTarget, 'slider-target');
+      addClass(addTarget, 'slider-horizontal');
+      return addNodeTo(addTarget, 'slider-base');
     };
 
     const baseSize = () => {
       const rect = scope_Base.getBoundingClientRect();
-      const alt = 'offsetWidth';
-      return rect.width || scope_Base[alt];
+      return rect.width || scope_Base['offsetWidth'];
     };
 
     const attachEvent = (events, element, callback, data) => {
-      const method = function(e) {
+      const method = e => {
         e = fixEvent(e, data.pageOffset, data.target || element);
         if (!e) return false;
-        if (hasClass(scope_Target, options.cssClasses.tap) && !data.doNotReject) return false;
         if (events === actions.start && e.buttons !== undefined && e.buttons > 1) return false;
         if (data.hover && e.buttons) return false;
         if (!supportsPassive) e.preventDefault();
-        e.calcPoint = e.points[options.ort];
+        e.calcPoint = e.points[0];
         callback(e, data);
       };
       const methods = [];
-      events.split(' ').forEach(function(eventName) {
+      events.split(' ').forEach(eventName => {
         element.addEventListener(eventName, method, supportsPassive ? { passive: true } : false);
         methods.push([eventName, method]);
       });
       return methods;
     };
 
-    function fixEvent(e, pageOffset, eventTarget) {
+    const fixEvent = (e, pageOffset, eventTarget) => {
       const touch = e.type.indexOf('touch') === 0;
       const mouse = e.type.indexOf('mouse') === 0;
       let pointer = e.type.indexOf('pointer') === 0;
@@ -394,7 +312,7 @@ function sliderFactory() {
       e.points = [x, y];
       e.cursor = mouse || pointer;
       return e;
-    }
+    };
 
     const documentLeave = (event, data) => {
       if (event.type === 'mouseout' && event.target.nodeName === 'HTML' && event.relatedTarget === null) eventEnd(event, data);
@@ -409,13 +327,12 @@ function sliderFactory() {
 
     const eventEnd = (event, data) => {
       if (data.handle) {
-        removeClass(data.handle, options.cssClasses.active);
+        removeClass(data.handle, 'slider-active');
         scope_ActiveHandlesCount -= 1;
       }
       data.listeners.forEach(c => scope_DocumentElement.removeEventListener(c[0], c[1]));
       if (scope_ActiveHandlesCount === 0) {
-        removeClass(scope_Target, options.cssClasses.drag);
-        setZindex();
+        removeClass(scope_Target, 'slider-state-drag');
         if (event.cursor) {
           scope_Body.style.cursor = '';
           scope_Body.removeEventListener('selectstart', e => e.preventDefault());
@@ -423,13 +340,13 @@ function sliderFactory() {
       }
     };
 
-    function eventStart(event, data) {
+    const eventStart = (event, data) => {
       let handle;
       if (data.handleNumbers.length === 1) {
         const handleOrigin = scope_Handles[data.handleNumbers[0]];
         handle = handleOrigin.children[0];
         scope_ActiveHandlesCount += 1;
-        addClass(handle, options.cssClasses.active);
+        addClass(handle, 'slider-active');
       }
       event.stopPropagation();
       const listeners = [];
@@ -461,53 +378,53 @@ function sliderFactory() {
       listeners.push.apply(listeners, moveEvent.concat(endEvent, outEvent));
       if (event.cursor) {
         scope_Body.style.cursor = getComputedStyle(event.target).cursor;
-        if (scope_Handles.length > 1) addClass(scope_Target, options.cssClasses.drag);
+        if (scope_Handles.length > 1) addClass(scope_Target, 'slider-state-drag');
         scope_Body.addEventListener('selectstart', e => e.preventDefault(), false);
       }
-    }
+    };
 
-    function bindSliderEvents() {
-      scope_Handles.forEach(function(handle, index) {
+    const bindSliderEvents = () => {
+      scope_Handles.forEach((handle, index) => {
         attachEvent(actions.start, handle.children[0], eventStart, {
           handleNumbers: [index],
         });
       });
 
-      scope_Connects.forEach(function(connect, index) {
+      scope_Connects.forEach((connect, index) => {
         if (connect === false || index === 0 || index === scope_Connects.length - 1) return;
         const handleBefore = scope_Handles[index - 1];
         const handleAfter = scope_Handles[index];
         const eventHolders = [connect];
-        addClass(connect, options.cssClasses.draggable);
-        eventHolders.forEach(function(eventHolder) {
+        addClass(connect, 'slider-draggable');
+        eventHolders.forEach(eventHolder => {
           attachEvent(actions.start, eventHolder, eventStart, {
             handles: [handleBefore, handleAfter],
             handleNumbers: [index - 1, index],
           });
         });
       });
-    }
+    };
 
-    function bindEvent(namespacedEvent, callback) {
+    const bindEvent = (namespacedEvent, callback) => {
       scope_Events[namespacedEvent] = scope_Events[namespacedEvent] || [];
       scope_Events[namespacedEvent].push(callback);
       if (namespacedEvent.split('.')[0] === 'update') {
         scope_Handles.forEach((a, index) => fireEvent('update', index));
       }
-    }
+    };
 
-    function fireEvent(eventName, handleNumber, tap) {
-      Object.keys(scope_Events).forEach(function(targetEvent) {
+    const fireEvent = (eventName, handleNumber, tap) => {
+      Object.keys(scope_Events).forEach(targetEvent => {
         const eventType = targetEvent.split('.')[0];
         if (eventName === eventType) {
-          scope_Events[targetEvent].forEach(function(callback) {
+          scope_Events[targetEvent].forEach(callback => {
             callback.call(scope_Self, scope_Values.map(options.format.to), handleNumber, scope_Values.slice(), tap || false, scope_Locations.slice());
           });
         }
       });
-    }
+    };
 
-    function checkHandlePosition(reference, handleNumber, to, lookBackward, lookForward, getValue) {
+    const checkHandlePosition = (reference, handleNumber, to, lookBackward, lookForward, getValue) => {
       if (scope_Handles.length > 1 && !options.events.unconstrained) {
         if (lookBackward && handleNumber > 0) to = Math.max(to, reference[handleNumber - 1] + options.margin);
         if (lookForward && handleNumber < scope_Handles.length - 1) to = Math.min(to, reference[handleNumber + 1] - options.margin);
@@ -516,21 +433,18 @@ function sliderFactory() {
       to = limit(to);
       if (to === reference[handleNumber] && !getValue) return false;
       return to;
-    }
+    };
 
-    function inRuleOrder(v, a) {
-      const o = options.ort;
-      return (o ? a : v) + ', ' + (o ? v : a);
-    }
+    const inRuleOrder = (v, a) => v + ', ' + a;
 
-    function moveHandles(upward, proposal, locations, handleNumbers) {
+    const moveHandles = (upward, proposal, locations, handleNumbers) => {
       const proposals = locations.slice();
       let b = [!upward, upward];
       let f = [upward, !upward];
       handleNumbers = handleNumbers.slice();
       if (upward) handleNumbers.reverse();
       if (handleNumbers.length > 1) {
-        handleNumbers.forEach(function(handleNumber, o) {
+        handleNumbers.forEach((handleNumber, o) => {
           const to = checkHandlePosition(proposals, handleNumber, proposals[handleNumber] + proposal, b[o], f[o], false);
           if (to === false) {
             proposal = 0;
@@ -543,42 +457,34 @@ function sliderFactory() {
         b = f = [true];
       }
       let state = false;
-      handleNumbers.forEach(function(handleNumber, o) {
+      handleNumbers.forEach((handleNumber, o) => {
         state = setHandle(handleNumber, locations[handleNumber] + proposal, b[o], f[o]) || state;
       });
       if (state) {
-        handleNumbers.forEach(function(handleNumber) {
+        handleNumbers.forEach(handleNumber => {
           fireEvent('update', handleNumber);
           fireEvent('slide', handleNumber);
         });
       }
-    }
+    };
 
-    function updateHandlePosition(handleNumber, to) {
+    const updateHandlePosition = (handleNumber, to) => {
       scope_Locations[handleNumber] = to;
       scope_Values[handleNumber] = scope_Spectrum.fromStepping(to);
-      const rule = 'translate(' + inRuleOrder(to - scope_DirOffset + '%', '0') + ')';
+      const rule = 'translate(' + inRuleOrder(to - 100 + '%', '0') + ')';
       scope_Handles[handleNumber].style[options.transformRule] = rule;
       updateConnect(handleNumber);
       updateConnect(handleNumber + 1);
-    }
+    };
 
-    function setZindex() {
-      scope_HandleNumbers.forEach(function(handleNumber) {
-        const dir = scope_Locations[handleNumber] > 50 ? -1 : 1;
-        const zIndex = 3 + (scope_Handles.length + dir * handleNumber);
-        scope_Handles[handleNumber].style.zIndex = zIndex;
-      });
-    }
-
-    function setHandle(handleNumber, to, lookBackward, lookForward) {
+    const setHandle = (handleNumber, to, lookBackward, lookForward) => {
       to = checkHandlePosition(scope_Locations, handleNumber, to, lookBackward, lookForward, false);
       if (to === false) return false;
       updateHandlePosition(handleNumber, to);
       return true;
-    }
+    };
 
-    function updateConnect(index) {
+    const updateConnect = index => {
       if (!scope_Connects[index]) return;
       let l = 0;
       let h = 100;
@@ -588,7 +494,7 @@ function sliderFactory() {
       const translateRule = 'translate(' + inRuleOrder(l + '%', '0') + ')';
       const scaleRule = 'scale(' + inRuleOrder(connectWidth / 100, '1') + ')';
       scope_Connects[index].style[options.transformRule] = translateRule + ' ' + scaleRule;
-    }
+    };
 
     const resolveToValue = (to, handleNumber) => {
       if (to === null || to === false || to === undefined) return scope_Locations[handleNumber];
@@ -603,7 +509,6 @@ function sliderFactory() {
       const values = asArray(input);
       scope_HandleNumbers.forEach(handleNumber => setHandle(handleNumber, resolveToValue(values[handleNumber], handleNumber), true, false));
       scope_HandleNumbers.forEach(handleNumber => setHandle(handleNumber, scope_Locations[handleNumber], true, true));
-      setZindex();
       scope_HandleNumbers.forEach(handleNumber => fireEvent('update', handleNumber));
     };
 
@@ -613,14 +518,12 @@ function sliderFactory() {
     valueSet(options.start);
     scope_Self = { on: bindEvent, options: originalOptions, target: scope_Target };
     return scope_Self;
-  }
+  };
 
-  const initialize = (target, originalOptions) => {
+  return (target, originalOptions) => {
     const options = testOptions(originalOptions, target);
     const api = scope(target, options, originalOptions);
     target.sliderApi = api;
     return api;
   };
-
-  return { create: initialize };
-}
+};
