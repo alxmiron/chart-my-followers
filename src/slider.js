@@ -436,7 +436,6 @@ const sliderFactory = () => {
     };
 
     const inRuleOrder = (v, a) => v + ', ' + a;
-
     const moveHandles = (upward, proposal, locations, handleNumbers) => {
       const proposals = locations.slice();
       let b = [!upward, upward];

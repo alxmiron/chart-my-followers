@@ -1,6 +1,5 @@
 const getSliderObservable = require('./slider').f;
 const Observable = require('./observable');
-const getChartSizeObservable = require('./chartSize').f;
 const { renderChart, getChartConfig, getGridRows } = require('./chart');
 const { renderDataSelect, renderColumnControls, updateSwitchesSubscriptions } = require('./controls');
 const { getDeviceRatio, updateThemeButton } = require('./utils');
@@ -21,6 +20,23 @@ const bootstrap = () => {
   const $columnSwitches = document.getElementById('column-switches');
   const $tooltipContainer = document.getElementById('tooltip-container');
   const $themeButton = document.getElementById('theme-button');
+
+  const getChartSizeObservable = (windowSize$, canvas, height, ratio, withPaddings = true) => {
+    const chartSize$ = windowSize$
+      .map(windowSize => {
+        const chartWidth = (windowSize.width - (withPaddings ? windowSize.paddings : 0)) * ratio;
+        const chartHeight = (typeof height === 'function' ? height(windowSize) : height) * ratio;
+        return { ratio, width: chartWidth, height: chartHeight };
+      }, true)
+      .subscribe(chartSize => {
+        canvas.width = chartSize.width;
+        canvas.height = chartSize.height;
+        canvas.style.width = chartSize.width / chartSize.ratio + 'px';
+        canvas.style.height = chartSize.height / chartSize.ratio + 'px';
+      })
+      .repeatLast();
+    return chartSize$;
+  };
 
   const darkTheme$ = new Observable('darkTheme')
     .fromEvent($themeButton, 'click')

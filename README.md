@@ -12,3 +12,5 @@ To run app locally:
 - run `yarn` to install dev dependencies
 - run `yarn start` for dev version, open localhost:3000
 - run `yarn build` and `yarn serve` for prod version, open localhost:3000
+
+![demo](demo.png)
