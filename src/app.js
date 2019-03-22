@@ -70,9 +70,8 @@ const bootstrap = () => {
     .map(({ dataset, dataSelect }) => ({ columns: dataset[dataSelect], index: dataSelect }))
     .withName('sourceData')
     .subscribe(sourceData => {
-      const firstCall = !$columnSwitches.childNodes.length;
       renderColumnControls($columnSwitches, sourceData.columns);
-      updateSwitchesSubscriptions($columnSwitches, columnSwitches$, firstCall);
+      updateSwitchesSubscriptions($columnSwitches, columnSwitches$);
     });
 
   const invertEase = false;
@@ -87,14 +86,17 @@ const bootstrap = () => {
   // Chart data (filtered by columns checkboxes)
   const chartData$ = sourceData$
     .merge([alphaSwitches$])
-    .map(({ alphaSwitches, sourceData }) => ({
-      columns: Object.keys(sourceData.columns).reduce((acc, colId) => {
-        acc[colId] = { ...sourceData.columns[colId], alpha: alphaSwitches[colId] };
-        return acc;
-      }, {}),
-      dataIndex: sourceData.index,
-      slider: { left: 0, right: 1 },
-    }))
+    .map(({ alphaSwitches, sourceData }, prev) => {
+      const dataChanged = !prev || prev.sourceData.index !== sourceData.index;
+      return {
+        columns: Object.keys(sourceData.columns).reduce((acc, colId) => {
+          acc[colId] = { ...sourceData.columns[colId], alpha: dataChanged ? 1 : alphaSwitches[colId] };
+          return acc;
+        }, {}),
+        dataIndex: sourceData.index,
+        slider: { left: 0, right: 1 },
+      };
+    })
     .withName('chartData');
 
   // Global window size
@@ -108,7 +110,6 @@ const bootstrap = () => {
 
   const withBigCanvas = fn => fn(bigCanvas, bigCtx);
   const withNavCanvas = fn => fn(navCanvas, navCtx);
-  const isDatasetChanged = (chartData, prevChartData) => !prevChartData || prevChartData.dataIndex !== chartData.dataIndex;
   const getStepY = data => data.config.stepY;
   const setStepY = (data, newValue) => ({ ...data, config: { ...data.config, stepY: newValue } });
   const getZoom = (newStepY, initStepY, targetStepY) => {
@@ -120,8 +121,8 @@ const bootstrap = () => {
     const zoomOutStage = (targetStepY - newStepY) / (targetStepY - initStepY); // from 1 to 0
     const zoomTop = (ifZoomIn ? zoomInStage : -zoomOutStage) * zoomFinal;
     const zoomBottom = (ifZoomIn ? zoomOutStage : -zoomInStage) * -zoomFinal;
-    const alphaTop = ifZoomIn ? zoomOutStage : zoomInStage;
-    const alphaBottom = ifZoomIn ? zoomInStage : zoomOutStage;
+    const alphaTop = Math.max(ifZoomIn ? zoomOutStage : zoomInStage, 0);
+    const alphaBottom = Math.max(ifZoomIn ? zoomInStage : zoomOutStage, 0);
     return { resizing, ifZoomIn, zoomTop, zoomBottom, alphaTop, alphaBottom };
   };
   const setStepYAndGrid = (data, newStepY, initStepY, targetStepY, prevData) => {
@@ -186,9 +187,8 @@ const bootstrap = () => {
 
     const bigChartData$ = chartData$
       .merge([slider$, chartSize$])
-      .map(({ chartData, chartSize, slider }, prev) => {
+      .map(({ chartData, chartSize, slider }) => {
         const data = { ...chartData, size: chartSize, slider };
-        data.datasetChanged = isDatasetChanged(chartData, prev && prev.chartData);
         data.config = getChartConfig(data, chartOptions.topOffsetPercent, chartOptions.bottomOffset, chartOptions.sideOffset);
         data.gridRows = getGridRows(data, chartOptions.topOffsetPercent, chartOptions.bottomOffset, chartOptions.sideOffset);
         return data;
@@ -207,9 +207,8 @@ const bootstrap = () => {
 
     const navChartData$ = chartData$
       .merge([chartSize$])
-      .map(({ chartData, chartSize }, prev) => {
+      .map(({ chartData, chartSize }) => {
         const data = { ...chartData, size: chartSize };
-        data.datasetChanged = isDatasetChanged(chartData, prev && prev.chartData);
         data.config = getChartConfig(data, chartOptions.topOffsetPercent);
         return data;
       })

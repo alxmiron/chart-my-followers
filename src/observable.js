@@ -89,7 +89,7 @@ class Observable {
     };
 
     this.subscribe((data, lastValue) => {
-      if (!lastValue || data.datasetChanged || ignoreIf(data, lastValue)) return child$.broadcast(data);
+      if (!lastValue || data.dataIndex !== lastValue.dataIndex || ignoreIf(data, lastValue)) return child$.broadcast(data);
       const value = getProp(data);
       const tr = child$.transition;
       if (tr) {

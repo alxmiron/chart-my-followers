@@ -17,8 +17,7 @@ const renderColumnControls = ($columnSwitches, dataColumns) => {
   return dataColumns;
 };
 
-const updateSwitchesSubscriptions = ($columnSwitches, columnSwitches$, firstCall) => {
-  const newValue = {};
+const updateSwitchesSubscriptions = ($columnSwitches, columnSwitches$) => {
   for (let idx = 0; idx < $columnSwitches.childNodes.length; idx++) {
     const $label = $columnSwitches.childNodes[idx];
     let $input;
@@ -27,7 +26,6 @@ const updateSwitchesSubscriptions = ($columnSwitches, columnSwitches$, firstCall
       if ($child.nodeName === 'INPUT') $input = $child;
     }
     columnSwitches$.lastValue[$input.name] = $input.checked ? 1 : 0;
-    newValue[$input.name] = $input.checked ? 1 : 0;
     $input.addEventListener('change', event =>
       columnSwitches$.broadcast({
         ...columnSwitches$.lastValue,
@@ -35,7 +33,6 @@ const updateSwitchesSubscriptions = ($columnSwitches, columnSwitches$, firstCall
       }),
     );
   }
-  if (!firstCall) columnSwitches$.broadcast(newValue);
   return columnSwitches$;
 };
 
