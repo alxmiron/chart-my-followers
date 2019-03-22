@@ -150,9 +150,17 @@ const bootstrap = () => {
       .every(col => col.alpha < 1);
 
   withBigCanvas((canvas, ctx) => {
-    const chartOptions = { withGrid: true, withTimeline: true, withTooltip: true, lineWidth: 2, topOffsetPercent: 0.2, bottomOffset: 20 };
+    const chartOptions = {
+      withGrid: true,
+      withTimeline: true,
+      withTooltip: true,
+      lineWidth: 2,
+      topOffsetPercent: 0.2,
+      bottomOffset: 20,
+      sideOffset: 10,
+    };
     const chartHeight = windowSize => Math.min(windowSize.height /* paddings */ - 10 /* title */ - 34 /* nav */ - 65 /* controls */ - 110 - 15, 600);
-    const chartSize$ = getChartSizeObservable(windowSize$, canvas, chartHeight, ratio).withName('chartSize');
+    const chartSize$ = getChartSizeObservable(windowSize$, canvas, chartHeight, ratio, false).withName('chartSize');
 
     const chartClick$ = new Observable('chartClick', false)
       .fromEvent(canvas, 'click')
@@ -165,8 +173,8 @@ const bootstrap = () => {
       .map(({ chartData, chartSize, slider }, prev) => {
         const data = { ...chartData, size: chartSize, slider };
         data.datasetChanged = isDatasetChanged(chartData, prev && prev.chartData);
-        data.config = getChartConfig(data, chartOptions.topOffsetPercent, chartOptions.bottomOffset);
-        data.gridRows = getGridRows(data, chartOptions.topOffsetPercent, chartOptions.bottomOffset);
+        data.config = getChartConfig(data, chartOptions.topOffsetPercent, chartOptions.bottomOffset, chartOptions.sideOffset);
+        data.gridRows = getGridRows(data, chartOptions.topOffsetPercent, chartOptions.bottomOffset, chartOptions.sideOffset);
         return data;
       })
       .withTransition(getStepY, setStepYAndGrid, { ignoreIf: ignoreStepYif })

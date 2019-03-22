@@ -5,10 +5,10 @@ const resizeChart = (canvas, chartSize) => {
   canvas.style.height = chartSize.height / chartSize.ratio + 'px';
 };
 
-exports.f = (windowSize$, canvas, height, ratio) => {
+exports.f = (windowSize$, canvas, height, ratio, withPaddings = true) => {
   const chartSize$ = windowSize$
     .map(windowSize => {
-      const chartWidth = (windowSize.width - windowSize.paddings) * ratio;
+      const chartWidth = (windowSize.width - (withPaddings ? windowSize.paddings : 0)) * ratio;
       const chartHeight = (typeof height === 'function' ? height(windowSize) : height) * ratio;
       return { ratio, width: chartWidth, height: chartHeight };
     }, true)

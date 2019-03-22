@@ -83,33 +83,33 @@ const renderTimeline = ctx => (chartData, stepX, stepY, darkTheme, scrollOffset,
   ctx.globalAlpha = 1;
 };
 
-const renderGridLine = ctx => (chartSize, darkTheme, gridRow, bottomOffset) => {
+const renderGridLine = ctx => (chartSize, darkTheme, gridRow, bottomOffset, sideOffset) => {
   ctx.globalAlpha = gridRow.alpha;
   const options = { ratio: chartSize.ratio, color: darkTheme ? '#313d4d' : '#eaeaea' };
   const y = chartSize.height - bottomOffset * chartSize.ratio - gridRow.level;
-  renderLine(ctx)(0, y, chartSize.width, y, options);
+  renderLine(ctx)(0 + sideOffset * chartSize.ratio, y, chartSize.width - sideOffset * chartSize.ratio, y, options);
 };
 
-const renderGrid = ctx => (chartSize, darkTheme, gridRows, bottomOffset) => {
+const renderGridLines = ctx => (chartSize, darkTheme, gridRows, bottomOffset, sideOffset) => {
   gridRows.forEach(gridRow => {
     const rows = Array.isArray(gridRow) ? gridRow : [gridRow];
-    rows.forEach(row => renderGridLine(ctx)(chartSize, darkTheme, row, bottomOffset));
+    rows.forEach(row => renderGridLine(ctx)(chartSize, darkTheme, row, bottomOffset, sideOffset));
   });
   ctx.globalAlpha = 1;
 };
 
-const renderGridValue = ctx => (chartSize, darkTheme, gridRow, bottomOffset) => {
+const renderGridValue = ctx => (chartSize, darkTheme, gridRow, bottomOffset, sideOffset) => {
   ctx.globalAlpha = gridRow.alpha;
   ctx.font = `lighter ${12 * chartSize.ratio}px sans-serif`;
   ctx.fillStyle = darkTheme ? '#546778' : '#a5a5a5';
   const y = chartSize.height - bottomOffset * chartSize.ratio - gridRow.level - 5 * chartSize.ratio;
-  ctx.fillText(gridRow.label, 0, y);
+  ctx.fillText(gridRow.label, 0 + sideOffset * chartSize.ratio, y);
 };
 
-const renderGridValues = ctx => (chartSize, darkTheme, gridRows, bottomOffset) => {
+const renderGridValues = ctx => (chartSize, darkTheme, gridRows, bottomOffset, sideOffset) => {
   gridRows.forEach(gridRow => {
     const rows = Array.isArray(gridRow) ? gridRow : [gridRow];
-    rows.forEach(row => renderGridValue(ctx)(chartSize, darkTheme, row, bottomOffset));
+    rows.forEach(row => renderGridValue(ctx)(chartSize, darkTheme, row, bottomOffset, sideOffset));
   });
   ctx.globalAlpha = 1;
 };
@@ -203,26 +203,27 @@ const renderTooltip = (ctx, $tooltipContainer) => (chartData, darkTheme, chartCl
 exports.renderChart = (canvas, ctx, $tooltipContainer) => (chartData, chartClick, darkTheme, options) => {
   const chartSize = chartData.size;
   const gridRows = chartData.gridRows || [];
-  const { withTimeline, withTooltip, lineWidth = 1, bottomOffset = 0 } = options;
+  const { lineWidth = 1, bottomOffset = 0, sideOffset = 0 } = options;
   const { stepX, stepY, scrollOffset, leftSideIndex, rightSideIndex } = chartData.config;
   clearChart(canvas, ctx)();
   clearNodeChildren($tooltipContainer);
-  if (gridRows.length) renderGrid(ctx)(chartSize, darkTheme, gridRows, bottomOffset);
+  if (gridRows.length) renderGridLines(ctx)(chartSize, darkTheme, gridRows, bottomOffset, sideOffset);
   renderLinesChart(ctx, chartData, stepX, stepY, scrollOffset, leftSideIndex, rightSideIndex, lineWidth, bottomOffset);
-  if (gridRows.length) renderGridValues(ctx)(chartSize, darkTheme, gridRows, bottomOffset);
-  if (withTimeline) renderTimeline(ctx)(chartData, stepX, stepY, darkTheme, scrollOffset);
-  if (withTooltip && chartClick) {
+  if (gridRows.length) renderGridValues(ctx)(chartSize, darkTheme, gridRows, bottomOffset, sideOffset);
+  if (options.withTimeline) renderTimeline(ctx)(chartData, stepX, stepY, darkTheme, scrollOffset);
+  if (options.withTooltip && chartClick) {
     renderTooltip(ctx, $tooltipContainer)(chartData, darkTheme, chartClick, stepX, stepY, scrollOffset, bottomOffset, lineWidth);
   }
 };
 
-exports.getChartConfig = (chartData, topOffsetPercent = 0, bottomOffset = 0) => {
+exports.getChartConfig = (chartData, topOffsetPercent = 0, bottomOffset = 0, sideOffset = 0) => {
   const chartSize = chartData.size;
   const yColumns = omitProps(chartData.columns, col => col.id === 'x' || col.alpha < 0.5);
   const totalLength = chartData.columns.x.data.length - 1;
-  const stepX = chartSize.width / ((chartData.slider.right - chartData.slider.left) * totalLength);
+  const availableWidth = chartSize.width - 2 * sideOffset * chartSize.ratio;
+  const stepX = availableWidth / ((chartData.slider.right - chartData.slider.left) * totalLength);
   const totalWidth = totalLength * stepX;
-  const scrollOffset = totalWidth * chartData.slider.left;
+  const scrollOffset = -sideOffset * chartSize.ratio + totalWidth * chartData.slider.left;
   const leftSideIndex = Math.round(chartData.columns.x.data.length * chartData.slider.left);
   const rightSideIndex = Math.round(chartData.columns.x.data.length * chartData.slider.right) - 1;
   const maxDataValue = Math.max(

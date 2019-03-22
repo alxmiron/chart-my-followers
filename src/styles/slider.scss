@@ -82,7 +82,7 @@ $slider-height: 60px;
     display: block;
     position: absolute;
     height: $slider-height;
-    width: 4px;
+    width: 6px;
     left: 16px;
     top: 6px;
     background: rgba($lightBlue0, 0.8);
@@ -93,7 +93,7 @@ $slider-height: 60px;
   }
 
   &.slider-handle-lower {
-    right: -14px;
+    right: -13px;
   }
   &.slider-handle-upper {
     right: -18px;
