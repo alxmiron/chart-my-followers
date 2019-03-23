@@ -114,15 +114,16 @@ const bootstrap = () => {
   const setStepY = (data, newValue) => ({ ...data, config: { ...data.config, stepY: newValue } });
   const getZoom = (newStepY, initStepY, targetStepY) => {
     const ifZoomIn = targetStepY - newStepY > 0;
-    const zoomFinal = targetStepY / initStepY - 1; // from -n to +n
-    const resizing = Math.abs(zoomFinal) > 0.02; // Ignore very small stepY changes
+    const change = targetStepY / initStepY; // from 0 to n
+    const resizing = Math.abs(change - 1) > 0.02; // Ignore very small stepY changes
     if (!resizing) return { resizing };
+    const zoomFinal = change - 1 > 0 ? Math.max(change - 1, 0.2) : Math.min(change - 1, -0.2); // Math.max(change - 1, 0.05);
     const zoomInStage = (newStepY - initStepY) / (targetStepY - initStepY); // from 0 to 1
     const zoomOutStage = (targetStepY - newStepY) / (targetStepY - initStepY); // from 1 to 0
     const zoomTop = (ifZoomIn ? zoomInStage : -zoomOutStage) * zoomFinal;
     const zoomBottom = (ifZoomIn ? zoomOutStage : -zoomInStage) * -zoomFinal;
-    const alphaTop = Math.max(ifZoomIn ? zoomOutStage : zoomInStage, 0);
-    const alphaBottom = Math.max(ifZoomIn ? zoomInStage : zoomOutStage, 0);
+    const alphaTop = Math.min(Math.max(ifZoomIn ? zoomOutStage : zoomInStage, 0) * 1.5, 1);
+    const alphaBottom = Math.min(Math.max(ifZoomIn ? zoomInStage : zoomOutStage, 0) * 1.5, 1);
     return { resizing, ifZoomIn, zoomTop, zoomBottom, alphaTop, alphaBottom };
   };
   const setStepYAndGrid = (data, newStepY, initStepY, targetStepY, prevData) => {
