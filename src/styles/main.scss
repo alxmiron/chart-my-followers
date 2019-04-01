@@ -31,12 +31,15 @@ h1 {
   height: 100%;
   background: $white0;
   color: $black1;
-  overflow: hidden;
 
   &.dark {
     background: $darkBlue0;
     color: $white1;
   }
+}
+
+.chart-container {
+  margin-bottom: 15px;
 }
 
 .big-canvas-container {

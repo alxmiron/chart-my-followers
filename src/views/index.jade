@@ -8,20 +8,19 @@ html(lang='')
     link(rel="stylesheet" href="css/bundle.css")
   body
     #root
-      h1 Followers
-      .big-canvas-container
-        canvas#big-canvas
-        .tooltip-container#tooltip-container
-      .nav-canvas-container
-        canvas#nav-canvas
-        .navigation-handler#navigation-handler
+      each idx in [0, 1, 2, 3, 4]
+        .chart-container(id='chart-' + idx)
+          h1
+          .big-canvas-container
+            canvas#big-canvas
+            .tooltip-container#tooltip-container
+          .nav-canvas-container
+            canvas#nav-canvas
+            .navigation-handler#navigation-handler
+          .controls
+            .controls-data
+              .switches#column-switches
 
-      .controls
-        .controls-data
-          .switches#column-switches
-          .select
-            span.select-text Dataset:
-            select#dataset-select
-        .theme
-          button#theme-button Switch to Night Mode
+      .theme
+        button#theme-button Switch to Night Mode
     script(src="js/bundle.js")

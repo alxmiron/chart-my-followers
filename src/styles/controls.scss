@@ -13,31 +13,6 @@ $switch-size: 40px;
   flex: 0 0 auto;
 }
 
-.select {
-  margin-left: 10px;
-  display: flex;
-  align-items: center;
-  flex: 0 0 auto;
-
-  select {
-    height: 40px;
-    outline: none;
-    font-size: 14px;
-    background: none;
-    width: 50px;
-    border: 1px solid $grey1;
-    color: inherit;
-
-    .dark & {
-      border-color: $darkBlue2;
-    }
-  }
-
-  .select-text {
-    margin-right: 3px;
-  }
-}
-
 .switches {
   flex: 2 0 auto;
 }

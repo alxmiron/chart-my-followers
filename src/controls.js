@@ -36,12 +36,4 @@ const updateSwitchesSubscriptions = ($columnSwitches, columnSwitches$) => {
   return columnSwitches$;
 };
 
-const renderDataSelect = ($dataSelect, dataset) => {
-  Object.values(dataset).forEach((dataCase, index) => {
-    const option = createElement('option', { attributes: { value: index }, text: `${index + 1}` });
-    $dataSelect.appendChild(option);
-  });
-  return dataset;
-};
-
-module.exports = { renderColumnControls, updateSwitchesSubscriptions, renderDataSelect };
+module.exports = { renderColumnControls, updateSwitchesSubscriptions };

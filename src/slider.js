@@ -1,7 +1,7 @@
 const Observable = require('./observable');
 
-exports.f = () => {
-  const sliderNode = document.getElementById('navigation-handler');
+exports.f = $container => {
+  const sliderNode = $container.querySelector('#navigation-handler');
   sliderFactory()(sliderNode);
   const slider$ = new Observable('slider');
   sliderNode.sliderApi.on('update', data => slider$.broadcast(data));
