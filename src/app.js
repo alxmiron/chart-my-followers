@@ -71,12 +71,12 @@ const bootstrap = () => {
 
   function createChart($container, sourceData, index) {
     $container.querySelector('h1').appendChild(document.createTextNode(`Chart ${index + 1}`));
-    const bigCanvas = $container.querySelector('#big-canvas');
+    const bigCanvas = $container.querySelector('.big-canvas');
     const bigCtx = bigCanvas.getContext('2d');
-    const navCanvas = $container.querySelector('#nav-canvas');
+    const navCanvas = $container.querySelector('.nav-canvas');
     const navCtx = navCanvas.getContext('2d');
-    const $columnSwitches = $container.querySelector('#column-switches');
-    const $tooltipContainer = $container.querySelector('#tooltip-container');
+    const $columnSwitches = $container.querySelector('.column-switches');
+    const $tooltipContainer = $container.querySelector('.tooltip-container');
 
     const ratio = getDeviceRatio(navCtx);
     navCtx.scale(ratio, ratio);
