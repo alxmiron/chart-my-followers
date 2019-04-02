@@ -9,7 +9,7 @@ const bootstrap = () => {
     const chartSize$ = windowSize$
       .map(windowSize => {
         const chartWidth = (windowSize.width - (withPaddings ? windowSize.paddings : 0)) * ratio;
-        const chartHeight = height * ratio;
+        const chartHeight = Math.min((Math.max(windowSize.height, 400) - 180) * ratio, height * ratio);
         return { ratio, width: chartWidth, height: chartHeight };
       }, true)
       .subscribe(chartSize => {
