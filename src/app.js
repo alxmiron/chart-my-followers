@@ -2,7 +2,7 @@ const getSliderObservable = require('./slider').f;
 const Observable = require('./observable');
 const { renderChart, getChartConfig, getGridRows } = require('./chart');
 const { renderColumnControls, updateSwitchesSubscriptions } = require('./controls');
-const { getDeviceRatio, updateThemeButton } = require('./utils');
+const { getDeviceRatio, clearNodeChildren } = require('./utils');
 
 const bootstrap = () => {
   const getChartSizeObservable = (windowSize$, canvas, height, ratio, withPaddings = true) => {
@@ -23,6 +23,10 @@ const bootstrap = () => {
   };
 
   const $themeButton = document.getElementById('theme-button');
+  const updateThemeButton = nightMode => {
+    clearNodeChildren($themeButton);
+    $themeButton.appendChild(document.createTextNode(nightMode ? 'Switch to Day Mode' : 'Switch to Night Mode'));
+  };
   const darkTheme$ = new Observable('darkTheme')
     .fromEvent($themeButton, 'click')
     .withInitialEvent(false)
@@ -35,7 +39,7 @@ const bootstrap = () => {
       } else {
         rootNode.classList.remove('dark');
       }
-      updateThemeButton($themeButton, value);
+      updateThemeButton(value);
     });
 
   // Global window size

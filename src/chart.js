@@ -1,5 +1,22 @@
-const { getDataValueCoords, omitProps, getDateText } = require('./utils');
+const { omitProps } = require('./utils');
 const { createElement, clearNodeChildren } = require('./utils');
+
+const getDateText = (date, showDay = false) => {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const label = `${months[date.getMonth()]} ${date.getDate()}`;
+  if (showDay) {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return `${days[date.getDay()]}, ${label}`;
+  }
+  return label;
+};
+
+const getDataValueCoords = (chartSize, stepX, stepY, scrollOffset = 0, bottomOffset = 0) => (num = 0, index = 0) => {
+  return {
+    x: -scrollOffset + index * stepX,
+    y: chartSize.height - bottomOffset * chartSize.ratio - num * stepY,
+  };
+};
 
 const renderLine = ctx => (x0, y0, x1, y1, { color = '#eaeaea', lineWidth = 1, ratio = 1 } = {}) => {
   ctx.strokeStyle = color.toUpperCase();

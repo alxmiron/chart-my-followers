@@ -1,6 +1,6 @@
 const { omitProps, clearNodeChildren, createElement } = require('./utils');
 
-const renderColumnControls = ($columnSwitches, dataColumns) => {
+exports.renderColumnControls = ($columnSwitches, dataColumns) => {
   const yColumns = omitProps(dataColumns, ['x']);
   clearNodeChildren($columnSwitches); // remove current switches
   Object.values(yColumns).forEach(column => {
@@ -17,7 +17,7 @@ const renderColumnControls = ($columnSwitches, dataColumns) => {
   return dataColumns;
 };
 
-const updateSwitchesSubscriptions = ($columnSwitches, columnSwitches$) => {
+exports.updateSwitchesSubscriptions = ($columnSwitches, columnSwitches$) => {
   for (let idx = 0; idx < $columnSwitches.childNodes.length; idx++) {
     const $label = $columnSwitches.childNodes[idx];
     let $input;
@@ -35,5 +35,3 @@ const updateSwitchesSubscriptions = ($columnSwitches, columnSwitches$) => {
   }
   return columnSwitches$;
 };
-
-module.exports = { renderColumnControls, updateSwitchesSubscriptions };
